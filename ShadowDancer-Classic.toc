@@ -10,9 +10,11 @@
 ## SavedVariablesPerCharacter: ShadowDancer_CharDB
 
 # Localization
-# localization\zhCN.lua
+localization\enUS.lua
+localization\zhCN.lua
 
 # Core
+Template.lua
 ShadowDancer.lua
 
 # Skin

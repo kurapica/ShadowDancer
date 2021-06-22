@@ -11,7 +11,7 @@ Scorpio           "ShadowDancer"                     "0.1.0"
 
 namespace "ShadowDancer"
 
-export { floor = math.floor, min = math.min, max = math.max, ceil = math.ceil, tinsert = table.insert }
+export { floor = math.floor, min = math.min, max = math.max, ceil = math.ceil, tinsert = table.insert, sqrt = math.sqrt }
 
 BAR_MAX_BUTTON                  = 12
 HIDDEN_FRAME                    = CreateFrame("Frame") HIDDEN_FRAME:Hide()
@@ -22,6 +22,8 @@ CURRENT_BARS                    = List()
 CURRENT_SPEC                    = false
 UNLOCK_BARS                     = false
 
+ANCHORS                         = XList(Enum.GetEnumValues(FramePoint)):Map(function(x) return { Anchor(x, 0, 0) } end):ToList()
+
 
 -----------------------------------------------------------
 -- Addon Event Handler
@@ -29,7 +31,7 @@ UNLOCK_BARS                     = false
 function OnLoad()
     _SVDB                       = SVManager("ShadowDancer_DB", "ShadowDancer_CharDB")
 
-    _SVDB:SetDefault{
+    _SVDB:SetDefault            {
         PopupDuration           = 0.25,
         HideOriginalBar         = false,
 
@@ -37,7 +39,7 @@ function OnLoad()
         ActionBars              = {}
     }
 
-    CharSV():SetDefault{
+    CharSV():SetDefault         {
         Draggable               = true,
         UseMouseDown            = false,
 
@@ -71,16 +73,23 @@ function OnSpecChanged(self, spec)
 
     --- Load bar from other spec or just init it
     if #_SVDB.ActionBars == 0 and #charSV.ActionBars == 0 then
-        charSV.ActionBars       = preProfile and Toolset.clone(preProfile, true) or {
+        charSV.ActionBars       = preProfile and #preProfile > 0 and Toolset.clone(preProfile, true) or {
             {
-            Style               = {
+                Style           = {
                     location    = { Anchor("CENTER") },
+                    scale       = 1.0,
                     actionBarMap= ActionBarMap.MAIN,
+
                     rowCount    = 1,
                     columnCount = 12,
+                    count       = 12,
+                    elementWidth= 36,
+                    elementHeight = 36,
+                    orientation = "HORIZONTAL",
+                    leftToRight = true,
+                    topToBottom = true,
                     hSpacing    = 1,
                     vSpacing    = 1,
-                    scale       = 1.0,
                 },
                 Buttons         = {},
             }
@@ -116,8 +125,7 @@ end
 
 function RECYCLE_MASKS:OnInit(mask)
     mask.OnClick                = OpenMaskMenu
-    mask.OnStartResizing        = OnStartResizing
-    mask.OnStopResizing         = OnStopResizing
+    mask.OnStopMoving           = OnStopMoving
 end
 
 function RECYCLE_MASKS:OnPush(mask)
@@ -142,7 +150,6 @@ function UnlockBars()
 
     for i, bar in ipairs(CURRENT_BARS) do
         bar:SetMovable(true)
-        bar:SetResizable(true)
 
         bar.Mask              = RECYCLE_MASKS()
         bar.Mask:SetParent(bar)
@@ -160,7 +167,6 @@ function LockBars()
     NoCombat(function()
         for i, bar in ipairs(CURRENT_BARS) do
             bar:SetMovable(false)
-            bar:SetResizable(false)
         end
     end)
 
@@ -173,32 +179,26 @@ end
 -----------------------------------------------------------
 -- Helpers
 -----------------------------------------------------------
-function OnStartResizing(self)
-    local panel                 = self:GetParent()
-    panel.AutoSize              = false
+function OnStopMoving(self)
+    NoCombat(function(self)
+        local minrange, anchors = 9999999
 
-    Next(function()
-        while not (panel.AutoSize or InCombatLockdown())  do
-            panel.RowCount      = min(BAR_MAX_BUTTON, max(1, floor(panel:GetWidth() / panel.ElementWidth)))
-            panel.ColumnCount   = min(ceil(BAR_MAX_BUTTON / panel.RowCount), max(1, floor(panel:GetHeight() / panel.ElementHeight)))
-            panel.Count         = min(BAR_MAX_BUTTON, panel.RowCount * panel.ColumnCount)
-
-            Next()
+        for _, loc in ipairs(ANCHORS) do
+            local new           = self:GetLocation(loc)
+            local range         = sqrt( new[1].x ^ 2 + new[1].y ^ 2 )
+            if range < minrange then
+                minrange        = range
+                anchors         = new
+            end
         end
-    end)
+
+        self:SetLocation(anchors)
+    end, self:GetParent())
 end
 
-function OnStopResizing(self)
-    if InCombatLockdown() then
-        NoCombat(function(self) self.AutoSize = true end, self.GetParent())
-    else
-        self:GetParent().AutoSize = true
-    end
-end
-
-function OpenMaskMenu(self)
+function OpenMaskMenu(self, button)
     local bar                   = self:GetParent()
-    if not bar then return end
+    if not (bar and button == "RightButton") then return end
 
     ShowDropDownMenu{
         {
@@ -282,13 +282,35 @@ function OpenMaskMenu(self)
                 },
                 {
                     text                = _Locale["Action Bar Map"],
-                    submenu             = GetActionBarMapConfig(self),
+                    submenu             = GetActionBarMapConfig(bar),
+                },
+                {
+                    text                = _Locale["Column Count"] .. " - " .. bar.ColumnCount,
+                    click               = function()
+                        local value     = PickRange(_Locale["Choose the column count"], 1, 12, 1, bar.ColumnCount)
+                        if value then
+                            bar.ColumnCount = value
+                            bar.RowCount    = math.min(bar.RowCount, math.floor(12 / value))
+                            bar.Count       = math.max(12, bar.ColumnCount * bar.RowCount)
+                        end
+                    end
+                },
+                {
+                    text                = _Locale["Row Count"] .. " - " .. bar.RowCount,
+                    disabled            = math.floor(12 / bar.ColumnCount) == 1,
+                    click               = function()
+                        local value     = PickRange(_Locale["Choose the row count"], 1, math.floor(12 / bar.ColumnCount), 1, bar.RowCount)
+                        if value then
+                            bar.RowCount= value
+                            bar.Count   = math.max(12, bar.ColumnCount * bar.RowCount)
+                        end
+                    end
                 },
                 {
                     text                = _Locale["Scale"] .. " - " .. bar:GetScale(),
                     click               = function()
                         local value     = PickRange(_Locale["Choose the scale"], 0.3, 3, 0.1, bar:GetScale())
-                        if value then Style[bar].scale = value end
+                        if value then bar:SetScale(value) end
                     end
                 },
                 {
@@ -309,14 +331,14 @@ function OpenMaskMenu(self)
                     text                = _Locale["Auto Fade"],
                     check               = {
                         get             = function() return bar.AutoFadeOut end,
-                        set             = function(val) Style[bar].autoFadeOut = val end,
+                        set             = function(val) bar.AutoFadeOut = val end,
                     }
                 },
                 {
                     text                = _Locale["Fade Alpha"] .. " - " .. bar.FadeAlpha,
                     click               = function()
                         local value     = PickRange(_Locale["Choose the final fade alpha"], 0, 1, 0.01, bar.FadeAlpha)
-                        if value then Style[bar].fadeAlpha = value end
+                        if value then bar.FadeAlpha = value end
                     end
                 },
                 {
@@ -355,7 +377,7 @@ function GetAutoHideMenu(self)
                     end
 
                     tinsert(self.AutoHideCondition, new)
-                    Style[self].autoHideCondition = Toolset.clone(self.AutoHideCondition)
+                    self.AutoHideCondition = Toolset.clone(self.AutoHideCondition)
                 end
             end,
         },
@@ -371,7 +393,7 @@ function GetAutoHideMenu(self)
                 click               = function()
                     if Confirm(_Locale["Do you want delete the macro condition"]) then
                         table.remove(self.AutoHideCondition, i)
-                        Style[self].autoHideCondition = Toolset.clone(self.AutoHideCondition)
+                        self.AutoHideCondition = Toolset.clone(self.AutoHideCondition)
                     end
                 end,
             })
@@ -395,12 +417,19 @@ function AddBar(self)
     return bar:SetProfile{
         Style                   = {
             location            = { Anchor("CENTER") },
+            scale               = self:GetScale(),
             actionBarMap        = ActionBarMap.NONE,
+
             rowCount            = 1,
             columnCount         = 12,
+            count               = 12,
+            elementWidth        = self.ElementWidth,
+            elementHeight       = self.ElementHeigh,
+            orientation         = "HORIZONTAL",
+            leftToRight         = true,
+            topToBottom         = true,
             hSpacing            = self.HSpacing,
             vSpacing            = self.VSpacing,
-            scale               = 1.0,
         },
         Buttons                 = {},
     }
@@ -416,26 +445,6 @@ function DeleteBar(self)
     return ShadowBar.BarPool(self)
 end
 
-function UpdateOriginalBar()
-    if _SVDB.HideOriginalBar then
-        MainMenuBar:SetAlpha(0)
-        MainMenuBar:SetMovable(true)
-        MainMenuBar:SetUserPlaced(true)
-        MainMenuBar:ClearAllPoints()
-        MainMenuBar:SetPoint("RIGHT", UIParent, "LEFT", -1000, 0)
-
-        MicroButtonAndBagsBar:SetParent(HIDDEN_FRAME)
-    else
-        MainMenuBar:SetAlpha(1)
-        MainMenuBar:ClearAllPoints()
-        MainMenuBar:SetPoint("BOTTOM")
-        MainMenuBar:SetUserPlaced(false)
-        MainMenuBar:SetMovable(false)
-
-        MicroButtonAndBagsBar:SetParent(MainMenuBar)
-    end
-end
-
 -----------------------------------------------------------
 -- Client Helpers
 -----------------------------------------------------------
@@ -443,8 +452,44 @@ if Scorpio.IsRetail then
     function CharSV(spec)
         return spec and _SVDB.Char.Specs[spec] or _SVDB.Char.Spec
     end
+
+    function UpdateOriginalBar()
+        if _SVDB.HideOriginalBar then
+            if MicroButtonAndBagsBar:GetParent() == MainMenuBar then
+                MainMenuBar:SetAlpha(0)
+                MainMenuBar:SetMovable(true)
+                MainMenuBar:SetUserPlaced(true)
+                MainMenuBar:ClearAllPoints()
+                MainMenuBar:SetPoint("RIGHT", UIParent, "LEFT", -1000, 0)
+
+                MicroButtonAndBagsBar:SetParent(HIDDEN_FRAME)
+            end
+        else
+            if MicroButtonAndBagsBar:GetParent() == HIDDEN_FRAME then
+                MainMenuBar:SetAlpha(1)
+                MainMenuBar:ClearAllPoints()
+                MainMenuBar:SetPoint("BOTTOM")
+                MainMenuBar:SetUserPlaced(false)
+                MainMenuBar:SetMovable(false)
+
+                MicroButtonAndBagsBar:SetParent(MainMenuBar)
+            end
+        end
+    end
 else
     function CharSV()
         return _SVDB.Char
+    end
+
+    function UpdateOriginalBar()
+        if _SVDB.HideOriginalBar then
+            if MainMenuBar:GetParent() == UIParent then
+                MainMenuBar:SetParent(HIDDEN_FRAME)
+            end
+        else
+            if MainMenuBar:GetParent() == HIDDEN_FRAME then
+                MainMenuBar:SetParent(UIParent)
+            end
+        end
     end
 end
