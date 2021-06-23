@@ -6,7 +6,7 @@
 --========================================================--
 
 --========================================================--
-Scorpio           "ShadowDancer"                     "0.1.0"
+Scorpio           "ShadowDancer"                     "1.0.0"
 --========================================================--
 
 namespace "ShadowDancer"
@@ -176,6 +176,15 @@ function LockBars()
     end
 end
 
+__SlashCmd__ "/shd"          "bind"
+__SlashCmd__ "/shadow"       "bind"
+__SlashCmd__ "/shadowdancer" "bind"
+function BindKeys()
+    if InCombatLockdown() then return end
+    SecureActionButton.StartKeyBinding()
+end
+
+
 -----------------------------------------------------------
 -- Helpers
 -----------------------------------------------------------
@@ -200,7 +209,7 @@ function OpenMaskMenu(self, button)
     local bar                   = self:GetParent()
     if not (bar and button == "RightButton") then return end
 
-    ShowDropDownMenu{
+    local menu                  = {
         {
             text                = _Locale["Lock Bar"],
             click               = LockBars,
@@ -316,16 +325,23 @@ function OpenMaskMenu(self, button)
                 {
                     text                = _Locale["Horizontal Spacing"] .. " - " .. bar.HSpacing,
                     click               = function()
-                        local value     = PickRange(_Locale["Choose the horizontal spacing"], 0, 10, 1, bar.HSpacing)
+                        local value     = PickRange(_Locale["Choose the horizontal spacing"], 0, 50, 1, bar.HSpacing)
                         if value then bar:SetSpacing(value, bar.VSpacing) end
                     end
                 },
                 {
                     text                = _Locale["Vertical Spacing"] .. " - " .. bar.VSpacing,
                     click               = function()
-                        local value     = PickRange(_Locale["Choose the vertical spacing"], 0, 10, 1, bar.VSpacing)
+                        local value     = PickRange(_Locale["Choose the vertical spacing"], 0, 50, 1, bar.VSpacing)
                         if value then bar:SetSpacing(bar.HSpacing, value) end
                     end
+                },
+                {
+                    text                = _Locale["Always Show Grid"],
+                    check               = {
+                        get             = function() return bar.GridAlwaysShow end,
+                        set             = function(val) bar.GridAlwaysShow = val end,
+                    }
                 },
                 {
                     text                = _Locale["Auto Fade"],
@@ -347,14 +363,19 @@ function OpenMaskMenu(self, button)
                 },
             },
         },
-        {
-            separator           = true,
-        },
+    }
+
+    FireSystemEvent("SHADOWDANCER_OPEN_MENU", bar, menu)
+
+    tinsert(menu, { separator   = true} )
+    tinsert(menu,
         {
             text                = _Locale["Delete Bar"],
             click               = function() return Confirm(_Locale["Do you want delete the action bar?"]) and DeleteBar(bar) end,
-        },
-    }
+        }
+    )
+
+    ShowDropDownMenu(menu)
 end
 
 function GetActionBarMapConfig(self)

@@ -161,7 +161,6 @@ do
         end
     end
 
-
     function RegisterAutoHide(self, cond, autofade)
         self.AutoHideState      = "autohide" .. self.Name
 
@@ -312,6 +311,8 @@ class "DancerButton" (function(_ENV)
                         orgFlyout       = self.FlyoutDirection
                         btnProfiles     = XList(baseBar:GetIterator()):Map(DancerButton.GetProfile):ToList()  -- temporary keep the button profiles
 
+                        self.FlyoutBar.GridAlwaysShow = true
+
                         for _, btn in self.FlyoutBar:GetIterator() do
                             if btn.FlyoutBar then btn.FlyoutBar:Hide() end
                         end
@@ -320,6 +321,8 @@ class "DancerButton" (function(_ENV)
                         if self.FlyoutBar then
                             isAdjustBar = true
                             orgFlyout   = self.FlyoutDirection
+
+                            self.FlyoutBar.GridAlwaysShow = true
 
                             for _, btn in self.FlyoutBar:GetIterator() do
                                 if btn.FlyoutBar then btn.FlyoutBar:Hide() end
@@ -364,6 +367,7 @@ class "DancerButton" (function(_ENV)
                             self.FlyoutBar.ElementHeight= baseBar.ElementHeight
                             self.FlyoutBar.HSpacing     = baseBar.HSpacing
                             self.FlyoutBar.VSpacing     = baseBar.VSpacing
+                            self.FlyoutBar.GridAlwaysShow = true
 
                             UpdateFlyoutLocation(self)
                         end
@@ -421,6 +425,8 @@ class "DancerButton" (function(_ENV)
                 end
             end
         end
+
+        self.FlyoutBar.GridAlwaysShow   = baseBar.GridAlwaysShow
     end
 
     local function onMouseDown(self, button)
@@ -433,14 +439,6 @@ class "DancerButton" (function(_ENV)
             bar                 = bar:GetParent():GetParent()
         end
         return bar:OnEnter()
-    end
-
-    local function onLeave(self)
-        local bar               = self:GetParent()
-        while bar.IsFlyoutBar do
-            bar                 = bar:GetParent():GetParent()
-        end
-        return bar:OnLeave()
     end
 
     ------------------------------------------------------
@@ -491,7 +489,7 @@ class "DancerButton" (function(_ENV)
                 bar.IsFlyoutBar     = true
                 bar:SetParent(self)
             else
-                bar.AlwaysFlyout    = false
+                self.AlwaysFlyout   = false
             end
 
             self.IsFlyout           = bar and true or false
@@ -650,8 +648,7 @@ class "DancerButton" (function(_ENV)
         Observable.From(self, "FlyoutDirection"):Subscribe(function() return UpdateFlyoutLocation(self) end)
 
         self.OnMouseDown        = self.OnMouseDown + onMouseDown
-        self.OnEnter            = self.OnEnter + onEnter
-        self.OnLeave            = self.OnLeave + onLeave
+        --self.OnEnter            = self.OnEnter + onEnter
     end
 end)
 
@@ -732,6 +729,7 @@ class "ShadowBar" (function(_ENV)
         ]]
 
         setupActionMap(ele, self.ActionBarMap)
+        ele.GridAlwaysShow      = self.GridAlwaysShow
     end
 
     local function onElementRemove(self, ele)
@@ -756,13 +754,6 @@ class "ShadowBar" (function(_ENV)
             self.__AutoFadeOutTask = ((self.__AutoFadeOutTask or 0) + 1) % 10000
         end
         self:SetAlpha(1)
-    end
-
-    local function onLeave(self)
-        if self:GetAttribute("autoFadeOut") and not self.IsFlyoutBar then
-            self.__AutoFadeOutTask = ((self.__AutoFadeOutTask or 0) + 1) % 10000
-            return Next(autoFadeOut, self)
-        end
     end
 
     local function onShow(self)
@@ -809,6 +800,14 @@ class "ShadowBar" (function(_ENV)
     --- The auto fade alpha
     property "FadeAlpha"        { type = Number,  default = 0, handler = function(self, val) val = val or 0 if self:GetAlpha() < val then self:SetAlpha(val) end end }
 
+    --- Whether always show the button grid
+    property "GridAlwaysShow"   { type = Boolean, default = false, handler = function(self, val)
+            for _, btn in self:GetIterator() do
+                btn.GridAlwaysShow  = val
+                if btn.FlyoutBar then btn.FlyoutBar.GridAlwaysShow = val end
+            end
+        end
+    }
 
     ------------------------------------------------------
     -- Static Property
@@ -834,6 +833,7 @@ class "ShadowBar" (function(_ENV)
             self.AutoHideCondition  = config.Style.autoHideCondition
             self.AutoFadeOut        = config.Style.autoFadeOut
             self.FadeAlpha          = config.Style.fadeAlpha
+            self.GridAlwaysShow     = config.Style.gridAlwaysShow
 
             self.RowCount           = config.Style.rowCount
             self.ColumnCount        = config.Style.columnCount
@@ -871,6 +871,7 @@ class "ShadowBar" (function(_ENV)
                 autoHideCondition = self.AutoHideCondition and Toolset.clone(self.AutoHideCondition),
                 autoFadeOut     = not self.IsFlyoutBar and self.AutoFadeOut or false,
                 fadeAlpha       = not self.IsFlyoutBar and self.FadeAlpha or 0,
+                gridAlwaysShow  = self.GridAlwaysShow,
 
                 rowCount        = self.RowCount,
                 columnCount     = self.ColumnCount,
@@ -906,13 +907,13 @@ class "ShadowBar" (function(_ENV)
     function __ctor(self)
         super(self)
 
+        self:SetMouseMotionEnabled(true)
         self:SetMovable(false)
         self:SetResizable(false)
 
         self.OnElementAdd       = self.OnElementAdd + onElementAdd
         self.OnElementRemove    = self.OnElementRemove + onElementRemove
-        self.OnEnter            = self.OnEnter + onEnter
-        self.OnLeave            = self.OnLeave + onLeave
+        --self.OnEnter            = self.OnEnter + onEnter
         self.OnShow             = self.OnShow + onShow
         self.OnHide             = self.OnHide + onHide
     end

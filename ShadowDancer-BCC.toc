@@ -4,6 +4,7 @@
 ## Version: r001
 ## Notes: A magical action button mod
 ## Dependencies: Scorpio.Action, Scorpio.Widget
+## OptionalDeps: Masque
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
 ## SavedVariables: ShadowDancer_DB
@@ -18,4 +19,4 @@ Template.lua
 ShadowDancer.lua
 
 # Skin
-# DefaultSkin.lua
+MasqueSkin.lua
