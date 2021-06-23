@@ -490,6 +490,8 @@ class "DancerButton" (function(_ENV)
 
                 bar.IsFlyoutBar     = true
                 bar:SetParent(self)
+            else
+                bar.AlwaysFlyout    = false
             end
 
             self.IsFlyout           = bar and true or false
@@ -901,7 +903,6 @@ class "ShadowBar" (function(_ENV)
     ------------------------------------------------------
     -- Constructor
     ------------------------------------------------------
-    __InstantApplyStyle__()
     function __ctor(self)
         super(self)
 

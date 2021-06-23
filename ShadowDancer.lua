@@ -405,16 +405,8 @@ end
 
 function AddBar(self)
     local bar                   = ShadowBar.BarPool()
-    CURRENT_BARS:Insert(bar)
 
-    bar:SetMovable(true)
-    bar:SetResizable(true)
-
-    bar.Mask                    = RECYCLE_MASKS()
-    bar.Mask:SetParent(bar)
-    bar.Mask:Show()
-
-    return bar:SetProfile{
+    bar:SetProfile              {
         Style                   = {
             location            = { Anchor("CENTER") },
             scale               = self:GetScale(),
@@ -424,7 +416,7 @@ function AddBar(self)
             columnCount         = 12,
             count               = 12,
             elementWidth        = self.ElementWidth,
-            elementHeight       = self.ElementHeigh,
+            elementHeight       = self.ElementHeight,
             orientation         = "HORIZONTAL",
             leftToRight         = true,
             topToBottom         = true,
@@ -433,6 +425,15 @@ function AddBar(self)
         },
         Buttons                 = {},
     }
+
+    CURRENT_BARS:Insert(bar)
+
+    bar:SetMovable(true)
+    bar:SetResizable(false)
+
+    bar.Mask                    = RECYCLE_MASKS()
+    bar.Mask:SetParent(bar)
+    bar.Mask:Show()
 end
 
 function DeleteBar(self)
