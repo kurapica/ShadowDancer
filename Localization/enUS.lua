@@ -1,4 +1,4 @@
-local L                         = Scorpio("AshToAsh")._Locale("enUS", true)
+local L                         = Scorpio("ShadowDancer")._Locale("enUS", true)
 if not L then return end
 
 L["NONE"]                       = "None"
