@@ -47,7 +47,10 @@ function UpdateMasqueSkin()
     -- Generate the Scorpio skin based on the masque skin
     -- The action button and masque use 36 * 36 as the button size, so no scale convertion
     local masqueSkin            = MasqueSkin[_SVDB.MasqueSkin]
-    local skin                  = {}
+    local skin                  = {
+        FlyoutBorder            = NIL,
+        FlyoutBorderShadow      = NIL,
+    }
 
     -- Mask for the Buttonn
     -- skin.maskTexture         = BuildMaskSkin(masqueSkin.Mask)

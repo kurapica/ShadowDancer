@@ -2,7 +2,7 @@
 ## Title: ShadowDancer
 ## Author: kurapica125@outlook.com
 ## Version: r001
-## Notes: A magical action button mod
+## Notes: A flexible action bar mod
 ## Dependencies: Scorpio.Action, Scorpio.Widget
 ## OptionalDeps: Masque
 ## DefaultState: Enabled

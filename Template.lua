@@ -34,6 +34,8 @@ do
     RECYCLE_BUTTONS             = Recycle(DancerButton, "ShadowDancerButton%d", UIParent)
     RECYCLE_BARS                = Recycle(ShadowBar,    "ShadowDancerBar%d",    UIParent)
 
+    AUTOFADE_WATCH              = {}
+
     ------------------------------------------------------
     --                Secure Environment                --
     ------------------------------------------------------
@@ -91,6 +93,32 @@ do
                 bar:Hide()
             end
         ]=]
+
+        UPDATE_BAR_AUTOHIDE     = [=[
+            for name, bar in pairs(AutoHideMap) do
+                if State[name] ~= false then
+                    bar:SetAttribute("autoFadeOut", nil)
+                    bar:Show()
+                    bar:SetAlpha(1)
+                elseif AutoFadeMap[name] then
+                    bar:Show()
+                    bar:SetAttribute("autoFadeOut", true)
+                    Manager:CallMethod("StartAutoFadeOut", bar:GetName())
+                else
+                    bar:SetAttribute("autoFadeOut", nil)
+                    bar:Hide()
+                    bar:SetAlpha(1)
+                end
+            end
+        ]=]
+
+        FORCE_BAR_SHOW          = [=[
+            for name, bar in pairs(AutoHideMap) do
+                bar:SetAttribute("autoFadeOut", nil)
+                bar:Show()
+                bar:SetAlpha(1)
+            end
+        ]=]
     ]==]
 
     function RECYCLE_BUTTONS:OnPop(button)
@@ -108,8 +136,6 @@ do
     end
 
     function RECYCLE_BARS:OnPush(bar)
-        UnregisterAutoHide(self)
-
         bar:SetProfile(nil)
 
         bar.IsFlyoutBar             = false
@@ -161,85 +187,46 @@ do
         end
     end
 
-    function RegisterAutoHide(self, cond, autofade)
-        self.AutoHideState      = "autohide" .. self.Name
-
-        _ManagerFrame:SetFrameRef("ShadowBar", self)
-        _ManagerFrame:Execute(([[
-            local name          = "%s"
-            local bar           = Manager:GetFrameRef("ShadowBar")
-            AutoHideMap[name]   = bar
-            AutoHideMap[bar]    = name
-            AutoFadeMap[name]   = %s
-            bar:SetAttribute("autofadeout", false)
-        ]]):format(self.AutoHideState, tostring(autofade or false)))
-
-        _ManagerFrame:RegisterStateDriver(self.AutoHideState, cond)
-        _ManagerFrame:SetAttribute("_onstate-" .. self.AutoHideState, ([[
-            local name          = "%s"
-            local bar           = AutoHideMap[name]
-            if not bar then return end
-            local autofade      = AutoFadeMap[name]
-
-            State[bar]          = newstate ~= "hide"
-
-            if newstate == "hide" then
-                if autofade then
-                    bar:SetAttribute("autofadeout", true)
-                    Manager:CallMethod("StartAutoFadeOut", bar:GetName())
-                else
-                    local btns  = BAR_MAP[bar]
-                    if btns then
-                        for btn in pairs(btns) do
-                            if FLYOUT_MAP[btn] then
-                                Manager:RunFor(btn, HIDE_FLYOUT_BARS)
-                            end
-                        end
-                    end
-
-                    bar:Hide()
-                end
-            else
-                bar:Show()
-
-                if autofade then
-                    bar:SetAttribute("autofadeout", false)
-                    Manager:CallMethod("StopAutoFadeOut", bar:GetName())
-                end
-            end
-        ]]):format(self.AutoHideState))
-        _ManagerFrame:SetAttribute("state-" .. self.AutoHideState, nil)
-    end
-
-    function UnregisterAutoHide(self)
-        if not self.AutoHideState then return end
-
-        _ManagerFrame:UnregisterStateDriver(self.AutoHideState)
-
-        _ManagerFrame:SetFrameRef("ShadowBar", self)
-        _ManagerFrame:Execute(([[
-            local name          = "%s"
-            local bar           = Manager:GetFrameRef("ShadowBar")
-            AutoHideMap[name]   = nil
-            AutoHideMap[bar]    = nil
-            AutoFadeMap[name]   = nil
-            State[bar]          = nil
-
-            bar:Show()
-        ]]):format(self.AutoHideState))
-        _ManagerFrame:SetAttribute("state-" .. self.AutoHideState, nil)
-
-        self.AutoHideState = nil
-    end
-
     __SecureMethod__()
     function _ManagerFrame:StartAutoFadeOut(name)
-        GetProxyUI(_G[name]):OnLeave()
+        AddAutoFadeWatch(GetProxyUI(_G[name]))
     end
 
-    __SecureMethod__()
-    function _ManagerFrame:StopAutoFadeOut(name)
-        GetProxyUI(_G[name]):OnEnter()
+    __Service__(true)
+    function AutoFadeService()
+        while true do
+            while next(AUTOFADE_WATCH) do
+                local diff      = 1 / (GetFramerate() * 2)
+
+                for root, a in pairs(AUTOFADE_WATCH) do
+                    if not root:GetAttribute("autoFadeOut") then
+                        AUTOFADE_WATCH[root] = nil
+                        root:SetAlpha(1)
+                    elseif root:HasMouseOver() then
+                        root:SetAlpha(1)
+                        AUTOFADE_WATCH[root] = 1
+                    else
+                        a       = a - diff
+                        if a <= root.FadeAlpha then
+                            root:SetAlpha(root.FadeAlpha)
+                            AUTOFADE_WATCH[root] = nil
+                        else
+                            root:SetAlpha(a)
+                            AUTOFADE_WATCH[root] = a
+                        end
+                    end
+                end
+
+                Next()
+            end
+
+            NextEvent("SHADOWDANCER_AUTO_FADE_WATCH")
+        end
+    end
+
+    function AddAutoFadeWatch(self)
+        if not next(AUTOFADE_WATCH) then FireSystemEvent("SHADOWDANCER_AUTO_FADE_WATCH") end
+        AUTOFADE_WATCH[self]    = self:GetAlpha()
     end
 end
 
@@ -248,6 +235,14 @@ class "DancerButton" (function(_ENV)
     inherit "SecureActionButton"
 
     export{ abs = math.abs, floor = math.floor, min = math.min }
+
+    local _SpellFlyoutMap       = {}
+
+    Wow.FromEvent("SPELL_FLYOUT_UPDATE"):Next():Subscribe(function()
+        for root in pairs(_SpellFlyoutMap) do
+            root:RegenerateFlyout()
+        end
+    end)
 
     ------------------------------------------------------
     --                     Helper                       --
@@ -304,6 +299,9 @@ class "DancerButton" (function(_ENV)
                     if baseBarRoot and isLast and ((baseBar.Orientation == "HORIZONTAL" and (dir == "LEFT" or dir == "RIGHT")) or (baseBar.Orientation == "VERTICAL" and (dir == "TOP" or dir == "BOTTOM"))) then
                         isGenBar        = true  -- Change the bar of the base
 
+                        -- The flyout has a auto-gen feature, so can't modify
+                        if baseBarRoot and baseBarRoot.ActionType == "flyout" then return end
+
                         self            = baseBarRoot
                         baseBar         = self:GetParent()
                         orgDir          = self.FlyoutDirection
@@ -330,6 +328,9 @@ class "DancerButton" (function(_ENV)
                         else
                             isGenBar    = true
                             orgDir      = dir
+
+                            -- The flyout has a auto-gen feature, so can't modify
+                            if baseBarRoot and baseBarRoot.ActionType == "flyout" then return end
                         end
                     end
                 elseif isGenBar then
@@ -358,6 +359,7 @@ class "DancerButton" (function(_ENV)
                     if count > 0 then
                         self.FlyoutDirection= orgDir
                         if not self.FlyoutBar then
+                            self.AlwaysFlyout = true
                             self.FlyoutBar  = ShadowBar.BarPool()
 
                             -- Init
@@ -411,7 +413,8 @@ class "DancerButton" (function(_ENV)
         elseif isGenBar and self.FlyoutBar and btnProfiles and #btnProfiles > 0 then
             -- Restore the buttons
             for i = 1, min(self.FlyoutBar.Count, #btnProfiles) do
-                self.Elements[i]:SetProfile(btnProfiles[i])
+                local btn               = self.FlyoutBar.Elements[i]
+                if btn then btn:SetProfile(btnProfiles[i]) end
             end
 
             local diff                  = (getDirectionValue(self.FlyoutDirection) - getDirectionValue(orgFlyout)) % 4
@@ -426,7 +429,9 @@ class "DancerButton" (function(_ENV)
             end
         end
 
-        self.FlyoutBar.GridAlwaysShow   = baseBar.GridAlwaysShow
+        if self.FlyoutBar then
+            self.FlyoutBar.GridAlwaysShow   = baseBar.GridAlwaysShow
+        end
     end
 
     local function onMouseDown(self, button)
@@ -507,8 +512,8 @@ class "DancerButton" (function(_ENV)
                 self:SetAction(config.ActionType, config.ActionTarget, config.ActionDetail)
             end
 
-            self.FlyoutDirection= config.FlyoutDirection
-            self.AlwaysFlyout   = config.AlwaysFlyout
+            self.FlyoutDirection= config.FlyoutDirection or "TOP"
+            self.AlwaysFlyout   = config.AlwaysFlyout or false
 
             self.AutoKeyBinding = parent.IsFlyoutBar
             self.HotKey         = config.HotKey
@@ -542,8 +547,123 @@ class "DancerButton" (function(_ENV)
             AlwaysFlyout        = self.AlwaysFlyout,
             HotKey              = self.HotKey,
 
-            FlyoutBar           = self.FlyoutBar and self.FlyoutBar:GetProfile(nocontent),
+            FlyoutBar           = self.FlyoutBar and self.ActionType ~= "flyout" and self.FlyoutBar:GetProfile(nocontent) or nil,
         }
+    end
+
+    __NoCombat__()
+    function RegenerateFlyout(self)
+        if self.ActionType ~= "flyout" then
+            self.FlyoutBar      = nil
+            return
+        end
+
+        local flyoutID          = self.ActionTarget
+        local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutID)
+
+        if numSlots and numSlots > 0 and isKnown then
+            local changed       = false
+            local map           = _SpellFlyoutMap[self]
+
+
+            if not map then
+                changed         = true
+                map             = {}
+                _SpellFlyoutMap[self] = map
+            end
+
+            local j             = 1
+            for i = 1, numSlots do
+                local spellID, _, isKnown = GetFlyoutSlotInfo(flyoutID, i)
+                if isKnown then
+                    if changed then
+                        map[j]  = spellID
+                    elseif map[j] ~= spellID then
+                        changed = true
+                        map[j]  = spellID
+                    end
+                    j           = j + 1
+                end
+            end
+
+            for i = #map, j, -1 do
+                tremove(map)
+                changed         = true
+            end
+
+            if changed then
+                local baseBar   = self:GetParent()
+                self.FlyoutBar  = self.FlyoutBar or ShadowBar.BarPool()
+
+                local bar       = self.FlyoutBar
+
+                -- Init
+                bar:SetScale(1)
+                bar.ActionBarMap    = ActionBarMap.NONE
+                bar.ElementWidth    = 36
+                bar.ElementHeight   = 36
+                bar.HSpacing        = baseBar.HSpacing or 1
+                bar.VSpacing        = baseBar.VSpacing or 1
+                bar.GridAlwaysShow  = baseBar.GridAlwaysShow
+
+                UpdateFlyoutLocation(self)
+
+                if self.FlyoutDirection == "TOP" then
+                    bar.Orientation = "VERTICAL"
+                    bar.TopToBottom = false
+                    bar.LeftToRight = true
+                    bar.ColumnCount = 1
+                    bar.RowCount    = #map
+                    bar.Count       = #map
+                elseif self.FlyoutDirection == "RIGHT" then
+                    bar.Orientation = "HORIZONTAL"
+                    bar.TopToBottom = true
+                    bar.LeftToRight = true
+                    bar.RowCount    = 1
+                    bar.ColumnCount = #map
+                    bar.Count       = #map
+                elseif self.FlyoutDirection == "BOTTOM" then
+                    bar.Orientation = "VERTICAL"
+                    bar.TopToBottom = true
+                    bar.LeftToRight = true
+                    bar.ColumnCount = 1
+                    bar.RowCount    = #map
+                    bar.Count       = #map
+                elseif self.FlyoutDirection == "LEFT" then
+                    bar.Orientation = "HORIZONTAL"
+                    bar.TopToBottom = true
+                    bar.LeftToRight = false
+                    bar.RowCount    = 1
+                    bar.ColumnCount = #map
+                    bar.Count       = #map
+                end
+
+                Next() NoCombat()
+
+                for i = 1, #map do
+                    bar.Elements[i].Spell = map[i]
+                end
+
+                bar:SetShown(self.AlwaysFlyout)
+            end
+        else
+            self.FlyoutBar      = nil
+        end
+    end
+
+
+    function Refresh(self)
+        if self.ActionType == "flyout" then
+            NoCombat(function()
+                self:RegenerateFlyout()
+            end)
+        elseif _SpellFlyoutMap[self] then
+            _SpellFlyoutMap[self] = nil
+
+            NoCombat(function()
+                self.FlyoutBar  = nil
+            end)
+        end
     end
 
     ------------------------------------------------------
@@ -648,7 +768,7 @@ class "DancerButton" (function(_ENV)
         Observable.From(self, "FlyoutDirection"):Subscribe(function() return UpdateFlyoutLocation(self) end)
 
         self.OnMouseDown        = self.OnMouseDown + onMouseDown
-        --self.OnEnter            = self.OnEnter + onEnter
+        self.OnEnter            = self.OnEnter + onEnter
     end
 end)
 
@@ -657,6 +777,8 @@ class "ShadowBar" (function(_ENV)
     inherit "SecurePanel"
 
     export{ max = math.max, min = math.min }
+
+    local autoFadeOutBar        = {}
 
     local function clearActionMap(self, map)
         self:SetAction(nil)
@@ -675,40 +797,94 @@ class "ShadowBar" (function(_ENV)
         elseif map >= ActionBarMap.BAR1 and map <= ActionBarMap.BAR6 then
             self:SetActionPage(map)
             self:SetAction("action", self:GetID())
+        elseif map == ActionBarMap.PET then
+            self:SetAction("pet", self:GetID())
         end
     end
 
     local function handlerAutoHideOrFade(self)
+        autoFadeOutBar[self]    = nil
+
+        _ManagerFrame:SetFrameRef("ShadowBar", self)
+        if self.AutoHideState then
+            _ManagerFrame:UnregisterStateDriver(self.AutoHideState)
+            _ManagerFrame:SetAttribute("state-" .. self.AutoHideState, nil)
+
+            _ManagerFrame:Execute(([[
+                local name          = "%s"
+                AutoHideMap[name]   = nil
+                AutoFadeMap[name]   = nil
+                State[name]         = nil
+            ]]):format(self.AutoHideState))
+
+            self.AutoHideState      = nil
+        end
+
         if self.IsFlyoutBar then
+            -- Only the root bar can auto hide/fade out
             self:SetAttribute("autoFadeOut", nil)
-            UnregisterAutoHide(self)
             self:SetAlpha(1)
         else
             if self.AutoHideCondition and #self.AutoHideCondition > 0 then
-                local cond      = ""
+                local cond          = ""
                 for _, k in ipairs(self.AutoHideCondition) do cond = cond .. k .. "hide;" end
-                cond            = cond .. "show;"
-                RegisterAutoHide(self, cond, self.AutoFadeOut)
+                cond                = cond .. "show;"
+
+                self.AutoHideState  = "autohide" .. self:GetName()
+
+                _ManagerFrame:Execute(([[
+                    local name          = "%s"
+                    local bar           = Manager:GetFrameRef("ShadowBar")
+                    AutoHideMap[name]   = bar
+                    AutoFadeMap[name]   = %s
+                    bar:SetAttribute("autofadeout", false)
+                ]]):format(self.AutoHideState, tostring(self.AutoFadeOut or false)))
+
+                _ManagerFrame:RegisterStateDriver(self.AutoHideState, cond)
+                _ManagerFrame:SetAttribute("_onstate-" .. self.AutoHideState, ([[
+                    local name          = "%s"
+                    local bar           = AutoHideMap[name]
+                    local autofade      = AutoFadeMap[name]
+
+                    State[name]         = newstate ~= "hide"
+
+                    if newstate == "hide" then
+                        if autofade then
+                            bar:SetAttribute("autoFadeOut", true)
+                            Manager:CallMethod("StartAutoFadeOut", bar:GetName())
+                        else
+                            bar:SetAttribute("autoFadeOut", nil)
+
+                            local btns  = BAR_MAP[bar]
+                            if btns then
+                                for btn in pairs(btns) do
+                                    if FLYOUT_MAP[btn] then
+                                        Manager:RunFor(btn, HIDE_FLYOUT_BARS)
+                                    end
+                                end
+                            end
+
+                            bar:Hide()
+                        end
+                    else
+                        bar:SetAttribute("autoFadeOut", nil)
+                        bar:Show()
+                        bar:SetAlpha(1)
+                    end
+                ]]):format(self.AutoHideState))
+                _ManagerFrame:SetAttribute("state-" .. self.AutoHideState, nil)
+
+                if self.AutoFadeOut then self:Show() end
+            elseif self.AutoFadeOut then
+                autoFadeOutBar[self]= true
+                self:SetAttribute("autoFadeOut", true)
+                self:Show()
+                AddAutoFadeWatch(self)
             else
-                UnregisterAutoHide(self)
-                self:SetAttribute("autoFadeOut", self.AutoFadeOut)
-                if self.AutoFadeOut then self:OnLeave() end
+                self:SetAttribute("autoFadeOut", nil)
+                self:SetAlpha(1)
+                self:Show()
             end
-        end
-    end
-
-    local function autoFadeOut(self)
-        local task              = self.__AutoFadeOutTask
-        local endt              = GetTime() + 2
-        local min               = self.FadeAlpha
-        local df                = 1 - min
-
-        while self.__AutoFadeOutTask == task and self:GetAttribute("autofadeout") do
-            local now           = GetTime()
-            if now >= endt then return self:SetAlpha(min) end
-
-            self:SetAlpha(min + (endt - now) / 2 * df)
-            Next()
         end
     end
 
@@ -750,10 +926,9 @@ class "ShadowBar" (function(_ENV)
     end
 
     local function onEnter(self)
-        if self.AutoFadeOut then
-            self.__AutoFadeOutTask = ((self.__AutoFadeOutTask or 0) + 1) % 10000
+        if not self.IsFlyoutBar and self:GetAttribute("autoFadeOut") then
+            AddAutoFadeWatch(self)
         end
-        self:SetAlpha(1)
     end
 
     local function onShow(self)
@@ -801,7 +976,7 @@ class "ShadowBar" (function(_ENV)
     property "FadeAlpha"        { type = Number,  default = 0, handler = function(self, val) val = val or 0 if self:GetAlpha() < val then self:SetAlpha(val) end end }
 
     --- Whether always show the button grid
-    property "GridAlwaysShow"   { type = Boolean, default = false, handler = function(self, val)
+    property "GridAlwaysShow"   { type = Boolean, default = true, handler = function(self, val)
             for _, btn in self:GetIterator() do
                 btn.GridAlwaysShow  = val
                 if btn.FlyoutBar then btn.FlyoutBar.GridAlwaysShow = val end
@@ -818,6 +993,26 @@ class "ShadowBar" (function(_ENV)
     __Static__()
     property "PopupDuration"    { handler = function(self, value) _ManagerFrame:SetAttribute("popupDuration", value) end }
 
+    __Static__()
+    property "EditMode"         { type = Boolean, handler = function(_, mode)
+            if mode then
+                _ManagerFrame:Execute[[ Manager:Run(FORCE_BAR_SHOW) ]]
+
+                for bar in pairs(autoFadeOutBar) do
+                    bar:SetAttribute("autoFadeOut", nil)
+                    bar:SetAlpha(1)
+                end
+            else
+                NoCombat(function() _ManagerFrame:Execute[[ Manager:Run(UPDATE_BAR_AUTOHIDE) ]] end)
+
+                for bar in pairs(autoFadeOutBar) do
+                    bar:SetAttribute("autoFadeOut", true)
+                    AddAutoFadeWatch(bar)
+                end
+            end
+        end
+    }
+
     ------------------------------------------------------
     -- Method
     ------------------------------------------------------
@@ -826,7 +1021,6 @@ class "ShadowBar" (function(_ENV)
             self:SetLocation(config.Style.location)
             self:SetScale(config.Style.scale)
 
-            self:SetMinResize(config.Style.elementWidth, config.Style.elementHeight)
             self:SetClampedToScreen(true)
 
             self.ActionBarMap       = config.Style.actionBarMap
@@ -835,15 +1029,17 @@ class "ShadowBar" (function(_ENV)
             self.FadeAlpha          = config.Style.fadeAlpha
             self.GridAlwaysShow     = config.Style.gridAlwaysShow
 
-            self.RowCount           = config.Style.rowCount
-            self.ColumnCount        = config.Style.columnCount
-            self.ElementWidth       = config.Style.elementWidth
-            self.ElementHeight      = config.Style.elementHeight
+            self.AutoPosition       = false
+            self.KeepMaxSize        = true
+            self.RowCount           = config.Style.rowCount or 1
+            self.ColumnCount        = config.Style.columnCount or 1
+            self.ElementWidth       = 36
+            self.ElementHeight      = 36
             self.Orientation        = config.Style.orientation
             self.LeftToRight        = config.Style.leftToRight
             self.TopToBottom        = config.Style.topToBottom
-            self.HSpacing           = config.Style.hSpacing
-            self.VSpacing           = config.Style.vSpacing
+            self.HSpacing           = config.Style.hSpacing or 1
+            self.VSpacing           = config.Style.vSpacing or 1
             self.Count              = max(min(config.Style.count, config.Style.rowCount * config.Style.columnCount), 1)
 
             if config.Buttons and #config.Buttons > 0 then
@@ -868,7 +1064,7 @@ class "ShadowBar" (function(_ENV)
                 location        = self:GetLocation(),
                 scale           = self:GetScale(),
                 actionBarMap    = self.ActionBarMap,
-                autoHideCondition = self.AutoHideCondition and Toolset.clone(self.AutoHideCondition),
+                autoHideCondition = self.AutoHideCondition and #self.AutoHideCondition > 0 and Toolset.clone(self.AutoHideCondition),
                 autoFadeOut     = not self.IsFlyoutBar and self.AutoFadeOut or false,
                 fadeAlpha       = not self.IsFlyoutBar and self.FadeAlpha or 0,
                 gridAlwaysShow  = self.GridAlwaysShow,
@@ -876,8 +1072,6 @@ class "ShadowBar" (function(_ENV)
                 rowCount        = self.RowCount,
                 columnCount     = self.ColumnCount,
                 count           = self.Count,
-                elementWidth    = self.ElementWidth,
-                elementHeight   = self.ElementHeight,
                 orientation     = self.Orientation,
                 leftToRight     = self.LeftToRight,
                 topToBottom     = self.TopToBottom,
@@ -901,6 +1095,17 @@ class "ShadowBar" (function(_ENV)
         end
     end
 
+    function HasMouseOver(self)
+        if self:IsMouseOver() then return true end
+
+        for _, btn in self:GetIterator() do
+            local bar           = btn.FlyoutBar
+            if bar and bar:HasMouseOver() then return true end
+        end
+
+        return false
+    end
+
     ------------------------------------------------------
     -- Constructor
     ------------------------------------------------------
@@ -913,7 +1118,7 @@ class "ShadowBar" (function(_ENV)
 
         self.OnElementAdd       = self.OnElementAdd + onElementAdd
         self.OnElementRemove    = self.OnElementRemove + onElementRemove
-        --self.OnEnter            = self.OnEnter + onEnter
+        self.OnEnter            = self.OnEnter + onEnter
         self.OnShow             = self.OnShow + onShow
         self.OnHide             = self.OnHide + onHide
     end

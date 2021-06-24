@@ -79,6 +79,7 @@ function OnSpecChanged(self, spec)
                     location    = { Anchor("CENTER") },
                     scale       = 1.0,
                     actionBarMap= ActionBarMap.MAIN,
+                    gridAlwaysShow = true,
 
                     rowCount    = 1,
                     columnCount = 12,
@@ -120,7 +121,7 @@ end
 
 function OnQuit()
     CharSV().ActionBars         = CURRENT_BARS:Map(ShadowBar.GetProfile):ToTable()
-    _SVDB.ActionBars            = GLOBAL_BARS:Mask(ShadowBar.GetProfile):ToTable()
+    _SVDB.ActionBars            = GLOBAL_BARS:Map(ShadowBar.GetProfile):ToTable()
 end
 
 function RECYCLE_MASKS:OnInit(mask)
@@ -141,17 +142,27 @@ __SlashCmd__ "/shadowdancer" "unlock"
 function UnlockBars()
     if InCombatLockdown() or UNLOCK_BARS then return end
 
-    UNLOCK_BARS               = true
+    UNLOCK_BARS                 = true
 
     Next(function()
         while UNLOCK_BARS and not InCombatLockdown() do Next() end
         return UNLOCK_BARS and LockBars()
     end)
 
-    for i, bar in ipairs(CURRENT_BARS) do
+    ShadowBar.EditMode          = true
+
+    for i, bar in GLOBAL_BARS:GetIterator() do
         bar:SetMovable(true)
 
-        bar.Mask              = RECYCLE_MASKS()
+        bar.Mask                = RECYCLE_MASKS()
+        bar.Mask:SetParent(bar)
+        bar.Mask:Show()
+    end
+
+    for i, bar in CURRENT_BARS:GetIterator() do
+        bar:SetMovable(true)
+
+        bar.Mask                = RECYCLE_MASKS()
         bar.Mask:SetParent(bar)
         bar.Mask:Show()
     end
@@ -162,17 +173,28 @@ __SlashCmd__ "/shadow"       "lock"
 __SlashCmd__ "/shadowdancer" "lock"
 function LockBars()
     if not UNLOCK_BARS then return end
-    UNLOCK_BARS               = false
+    UNLOCK_BARS                 = false
 
     NoCombat(function()
-        for i, bar in ipairs(CURRENT_BARS) do
+        for i, bar in GLOBAL_BARS:GetIterator() do
+            bar:SetMovable(false)
+        end
+
+        for i, bar in CURRENT_BARS:GetIterator() do
             bar:SetMovable(false)
         end
     end)
 
-    for i, bar in ipairs(CURRENT_BARS) do
+    ShadowBar.EditMode          = false
+
+    for i, bar in GLOBAL_BARS:GetIterator() do
         RECYCLE_MASKS(bar.Mask)
-        bar.Mask              = nil
+        bar.Mask                = nil
+    end
+
+    for i, bar in CURRENT_BARS:GetIterator() do
+        RECYCLE_MASKS(bar.Mask)
+        bar.Mask                = nil
     end
 end
 
@@ -299,8 +321,8 @@ function OpenMaskMenu(self, button)
                         local value     = PickRange(_Locale["Choose the column count"], 1, 12, 1, bar.ColumnCount)
                         if value then
                             bar.ColumnCount = value
-                            bar.RowCount    = math.min(bar.RowCount, math.floor(12 / value))
-                            bar.Count       = math.max(12, bar.ColumnCount * bar.RowCount)
+                            bar.RowCount    = math.max(bar.RowCount, math.floor(12 / value))
+                            bar.Count       = math.min(12, bar.ColumnCount * bar.RowCount)
                         end
                     end
                 },
@@ -311,7 +333,7 @@ function OpenMaskMenu(self, button)
                         local value     = PickRange(_Locale["Choose the row count"], 1, math.floor(12 / bar.ColumnCount), 1, bar.RowCount)
                         if value then
                             bar.RowCount= value
-                            bar.Count   = math.max(12, bar.ColumnCount * bar.RowCount)
+                            bar.Count   = math.min(12, bar.ColumnCount * bar.RowCount)
                         end
                     end
                 },
@@ -391,14 +413,19 @@ function GetAutoHideMenu(self)
             click               = function()
                 local new       = PickMacroCondition(_Locale["Please select the macro condition"])
                 if new then
+                    print("new", new)
                     if self.AutoHideCondition then
                         for _, macro in ipairs(self.AutoHideCondition) do
                             if macro == new then return end
                         end
                     end
 
-                    tinsert(self.AutoHideCondition, new)
-                    self.AutoHideCondition = Toolset.clone(self.AutoHideCondition)
+                    if self.AutoHideCondition then
+                        tinsert(self.AutoHideCondition, new)
+                        self.AutoHideCondition = Toolset.clone(self.AutoHideCondition)
+                    else
+                        self.AutoHideCondition = { new }
+                    end
                 end
             end,
         },
@@ -432,6 +459,7 @@ function AddBar(self)
             location            = { Anchor("CENTER") },
             scale               = self:GetScale(),
             actionBarMap        = ActionBarMap.NONE,
+            gridAlwaysShow      = self.GridAlwaysShow,
 
             rowCount            = 1,
             columnCount         = 12,
