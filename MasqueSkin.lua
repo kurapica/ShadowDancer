@@ -53,14 +53,14 @@ function UpdateMasqueSkin()
     -- skin.maskTexture         = BuildMaskSkin(masqueSkin.Mask)
 
     if masqueSkin.Backdrop and not masqueSkin.Backdrop.Hide then
-        skin.BackgroundTexture  = BuildTextureSkin(masqueSkin, "Backdrop")
+        skin.BackgroundTexture  = BuildTextureSkin(masqueSkin, "Backdrop", "BACKGROUND")
     end
 
     if masqueSkin.Icon then
         skin.IconTexture        = {
             texCoords           = masqueSkin.Icon.TexCoords and RectType(unpack(masqueSkin.Icon.TexCoords)) or nil,
             drawLayer           = masqueSkin.Icon.DrawLayer or "BACKGROUND",
-            subLevel            = masqueSkin.Icon.DrawLevel or -1,
+            subLevel            = masqueSkin.Icon.DrawLevel or 1,
 
             size                = GetSize(masqueSkin.Icon),
             setAllPoints        = masqueSkin.Icon.SetAllPoints and true or nil,
@@ -91,9 +91,9 @@ function UpdateMasqueSkin()
     end
 
     if masqueSkin.Flash and not masqueSkin.Flash.Hide then
-        skin.FlashTexture       = BuildTextureSkin(masqueSkin, "Flash")
-        skin.FlashTexture.alpha = 0
-        skin.FlashTexture.AnimationGroup = {
+        local flashSkin         = BuildTextureSkin(masqueSkin, "Flash")
+        flashSkin.alpha         = 0
+        flashSkin.animationGroup= {
             playing             = Wow.FromUIProperty("IsAutoAttacking"),
             looping             = "REPEAT",
 
@@ -118,6 +118,8 @@ function UpdateMasqueSkin()
                 toAlpha         = 0,
             }
         }
+
+        masqueSkin.FlashTexture =  Wow.FromUIProperty("IsAutoAttack"):Map(function(val) return val and flashSkin or nil end)
     end
 
     if masqueSkin.Name then
