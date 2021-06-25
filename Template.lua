@@ -11,9 +11,6 @@ Scorpio           "ShadowDancer.Template"            "1.0.0"
 
 namespace "ShadowDancer"
 
-import "Scorpio.Secure"
-import "System.Reactive"
-
 __Sealed__()
 enum "ActionBarMap"             {
     NONE                        = -1,
@@ -25,6 +22,24 @@ enum "ActionBarMap"             {
     BAR5                        = 5,
     BAR6                        = 6,
     PET                         = 100,
+    STANCEBAR                   = 200,
+}
+
+__Sealed__()
+enum "AutoGenRuleType"          {
+    RaidTarget                  = 1,
+    WorldMarker                 = 2,
+    BagSlot                     = 3,
+    EquipSet                    = _G.C_EquipmentSet and 4,
+
+    Item                        = 10,
+}
+
+__Sealed__()
+struct "AutoGenRule"  {
+    { name = "type",       type = AutoGenRuleType, require = true },
+    { name = "class",      type = Number },
+    { name = "subclass",   type = Number },
 }
 
 do
@@ -35,6 +50,11 @@ do
     RECYCLE_BARS                = Recycle(ShadowBar,    "ShadowDancerBar%d",    UIParent)
 
     AUTOFADE_WATCH              = {}
+    AUTOGEN_MAP                 = {}
+
+    AUTOGEN_ITEM_ROOT           = {}
+
+    CONTAINER_ITEM_LIST         = {}
 
     ------------------------------------------------------
     --                Secure Environment                --
@@ -228,19 +248,147 @@ do
         if not next(AUTOFADE_WATCH) then FireSystemEvent("SHADOWDANCER_AUTO_FADE_WATCH") end
         AUTOFADE_WATCH[self]    = self:GetAlpha()
     end
+
+    __Service__(true)
+    function AutoItemGen()
+        local itemClassMap      = {}
+        local changed           = {}
+        local indexMap          = {}
+
+        while true do
+            NoCombat()
+
+            local needAutoGen   = false
+
+            for root in pairs(AUTOGEN_ITEM_ROOT) do
+                local rule      = root.AutoGenRule
+                if rule and rule.type == AutoGenRuleType.Item then
+                    needAutoGen = true
+                    local cls   = _AuctionItemClasses[rule.class]
+                    if cls then
+                        itemClassMap[cls.name] = itemClassMap[cls.name] or {}
+
+                        itemClassMap[cls.name][rule.subclass and cls[rule.subclass] or -1] = root
+                    end
+                else
+                    AUTOGEN_ITEM_ROOT[root] = nil
+                end
+            end
+
+            if needAutoGen then
+                for i = 1, #CONTAINER_ITEM_LIST do
+                    local itemID    = CONTAINER_ITEM_LIST[i]
+                    local name, _, _, iLevel, reqLevel, cls, subclass = GetItemInfo(itemID)
+
+                    if cls then
+                        local root  = itemClassMap[cls]
+                        root        = root and (root[subclass] or root[-1])
+
+                        if root then
+                            local j = (indexMap[root] or -1) + 1
+                            indexMap[root] = j
+
+                            local m = AUTOGEN_MAP[root]
+                            if not m then
+                                m   = {}
+                                AUTOGEN_MAP[root] = m
+                            end
+
+                            if m[j] ~= itemID then
+                                m[j]= itemID
+                                changed[root] = true
+                            end
+                        end
+                    end
+                end
+
+                for root in pairs(changed) do
+                    root:RefreshAutoGen(AUTOGEN_MAP[root], "item")
+                end
+
+                for _, m in pairs(itemClassMap) do wipe(m) end
+                wipe(changed)
+                wipe(indexMap)
+            end
+
+            NextEvent("SHADOWDANCER_AUTO_GEN_ITEM")
+        end
+    end
+
+    __Service__(true)
+    function AutoScanItems()
+        local cache             = {}
+        while true do
+            NoCombat()
+
+            wipe(cache)
+            local index         = 0
+            local changed       = false
+
+            for bag = 0, NUM_BAG_FRAMES do
+                for slot = 1, GetContainerNumSlots(bag) do
+                    local itemID= GetContainerItemID(bag, slot)
+
+                    if itemID and not cache[itemID] and not _AutoGenBlackList[itemID] and GetItemSpell(itemID) then
+                        cache[itemID] = true
+
+                        index   = index + 1
+
+                        if CONTAINER_ITEM_LIST[index] ~= itemID then
+                            changed = true
+                            CONTAINER_ITEM_LIST[index] = itemID
+                        end
+                    end
+                end
+            end
+
+            for i = #CONTAINER_ITEM_LIST, index + 1, -1 do
+                changed         = true
+                CONTAINER_ITEM_LIST[i] = nil
+            end
+
+            if changed then
+                FireSystemEvent("SHADOWDANCER_AUTO_GEN_ITEM")
+            end
+
+            NextEvent("BAG_UPDATE_DELAYED")
+        end
+    end
+
+    function RegisterAutoItemGen(self)
+        if AUTOGEN_ITEM_ROOT[self] then return end
+
+        -- For now only allow one button for the same class and subclass
+        local itemClass, itemSubClass = self.AutoGenRule.class, self.AutoGenRule.subclass
+        if not itemClass then self.AutoGenRule = nil return  end
+
+        for root in pairs(AUTOGEN_ITEM_ROOT) do
+            if root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item then
+                if root.AutoGenRule.class == itemClass and (root.AutoGenRule.subclass == itemSubClass or not itemSubClass) then
+                    root.AutoGenRule = nil
+                    AUTOGEN_ITEM_ROOT[root] = nil
+                end
+            else
+                AUTOGEN_ITEM_ROOT[root] = nil
+            end
+        end
+        AUTOGEN_ITEM_ROOT[self] = true
+
+        FireSystemEvent("SHADOWDANCER_AUTO_GEN_ITEM")
+    end
 end
 
 __Sealed__()
 class "DancerButton" (function(_ENV)
     inherit "SecureActionButton"
 
-    export{ abs = math.abs, floor = math.floor, min = math.min }
+    export{ abs = math.abs, floor = math.floor, min = math.min, tremove = table.remove }
 
     local _SpellFlyoutMap       = {}
 
     Wow.FromEvent("SPELL_FLYOUT_UPDATE"):Next():Subscribe(function()
         for root in pairs(_SpellFlyoutMap) do
-            root:RegenerateFlyout()
+            root:RefreshFlyout()
         end
     end)
 
@@ -300,7 +448,7 @@ class "DancerButton" (function(_ENV)
                         isGenBar        = true  -- Change the bar of the base
 
                         -- The flyout has a auto-gen feature, so can't modify
-                        if baseBarRoot and baseBarRoot.ActionType == "flyout" then return end
+                        if baseBarRoot and (baseBarRoot.ActionType == "flyout" or baseBarRoot.AutoGenRule) then return end
 
                         self            = baseBarRoot
                         baseBar         = self:GetParent()
@@ -330,7 +478,7 @@ class "DancerButton" (function(_ENV)
                             orgDir      = dir
 
                             -- The flyout has a auto-gen feature, so can't modify
-                            if baseBarRoot and baseBarRoot.ActionType == "flyout" then return end
+                            if baseBarRoot and (baseBarRoot.ActionType == "flyout" or baseBarRoot.AutoGenRule) then return end
                         end
                     end
                 elseif isGenBar then
@@ -501,6 +649,45 @@ class "DancerButton" (function(_ENV)
         end
     }
 
+    --- The autogen rules
+    property "AutoGenRule"      { type = AutoGenRule, handler = function(self, rule)
+            if rule then
+                if rule.type == AutoGenRuleType.RaidTarget then
+                    self:RefreshAutoGen({ [0] = 0, 1, 2, 3, 4, 5, 6, 7, 8 }, "raidtarget")
+                elseif rule.type == AutoGenRuleType.WorldMarker then
+                    self:RefreshAutoGen({ [0] = 1, 2, 3, 4, 5, 6, 7, 8 }, "worldmarker")
+                elseif rule.type == AutoGenRuleType.BagSlot then
+                    self:RefreshAutoGen({ [0] = 0, 1, 2, 3, 4 }, "bag")
+                elseif rule.type == AutoGenRuleType.EquipSet then
+                    Continue(function()
+                        while self.AutoGenRule and self.AutoGenRule == AutoGenRuleType.EquipSet do
+                            local map       = {}
+                            local index     = 0
+
+                            for _, id in ipairs(C_EquipmentSet.GetEquipmentSetIDs()) do
+                                map[index]  = C_EquipmentSet.GetEquipmentSetInfo(id)
+                                index       = index + 1
+                            end
+
+                            self:RefreshAutoGen(map, "equipmentset")
+
+                            NextEvent("EQUIPMENT_SETS_CHANGED") NoCombat()
+                        end
+                    end)
+                elseif rule.type == AutoGenRuleType.Item then
+                    -- The item has a big auto gen rule, add it to the service
+                    return RegisterAutoItemGen(self)
+                else
+                    -- No support
+                end
+            elseif AUTOGEN_MAP[self] then
+                AUTOGEN_MAP[self] = nil
+                self:SetAction(nil)
+                self.FlyoutBar  = nil
+            end
+        end
+    }
+
     ------------------------------------------------------
     -- Method
     ------------------------------------------------------
@@ -526,6 +713,8 @@ class "DancerButton" (function(_ENV)
             else
                 self.FlyoutBar  = nil
             end
+
+            self.AutoGenRule    = config.AutoGenRule
         else
             -- Clear
             self:SetAction(nil)
@@ -535,7 +724,7 @@ class "DancerButton" (function(_ENV)
     end
 
     function GetProfile(self, nocontent)
-        local needAction        = not nocontent and self:GetParent().ActionBarMap == ActionBarMap.NONE
+        local needAction        = not nocontent and self:GetParent().ActionBarMap == ActionBarMap.NONE and not (self.AutoGenRule and self.AutoGenRule.type)
 
         return {
             -- Action Info
@@ -547,12 +736,79 @@ class "DancerButton" (function(_ENV)
             AlwaysFlyout        = self.AlwaysFlyout,
             HotKey              = self.HotKey,
 
-            FlyoutBar           = self.FlyoutBar and self.ActionType ~= "flyout" and self.FlyoutBar:GetProfile(nocontent) or nil,
+            FlyoutBar           = self.FlyoutBar and self.ActionType ~= "flyout" and not (self.AutoGenRule and self.AutoGenRule.type) and self.FlyoutBar:GetProfile(nocontent) or nil,
+            AutoGenRule         = self.AutoGenRule and self.AutoGenRule.type and Toolset.clone(self.AutoGenRule)
         }
     end
 
     __NoCombat__()
-    function RegenerateFlyout(self)
+    function RefreshAutoGen(self, map, type)
+        AUTOGEN_MAP[self]       = map
+
+        -- The flyout use different logic for itself
+        if self.ActionType ~= "flyout" then
+            self:SetAction(type, map and map[0])
+        end
+
+        if map and #map > 0 then
+            local baseBar       = self:GetParent()
+            self.FlyoutBar      = self.FlyoutBar or ShadowBar.BarPool()
+
+            local bar           = self.FlyoutBar
+
+            -- Init
+            bar:SetScale(1)
+            bar.ActionBarMap    = ActionBarMap.NONE
+            bar.ElementWidth    = 36
+            bar.ElementHeight   = 36
+            bar.HSpacing        = baseBar.HSpacing or 1
+            bar.VSpacing        = baseBar.VSpacing or 1
+            bar.GridAlwaysShow  = baseBar.GridAlwaysShow
+
+            UpdateFlyoutLocation(self)
+
+            if self.FlyoutDirection == "TOP" then
+                bar.Orientation = "VERTICAL"
+                bar.TopToBottom = false
+                bar.LeftToRight = true
+                bar.ColumnCount = 1
+                bar.RowCount    = #map
+                bar.Count       = #map
+            elseif self.FlyoutDirection == "RIGHT" then
+                bar.Orientation = "HORIZONTAL"
+                bar.TopToBottom = true
+                bar.LeftToRight = true
+                bar.RowCount    = 1
+                bar.ColumnCount = #map
+                bar.Count       = #map
+            elseif self.FlyoutDirection == "BOTTOM" then
+                bar.Orientation = "VERTICAL"
+                bar.TopToBottom = true
+                bar.LeftToRight = true
+                bar.ColumnCount = 1
+                bar.RowCount    = #map
+                bar.Count       = #map
+            elseif self.FlyoutDirection == "LEFT" then
+                bar.Orientation = "HORIZONTAL"
+                bar.TopToBottom = true
+                bar.LeftToRight = false
+                bar.RowCount    = 1
+                bar.ColumnCount = #map
+                bar.Count       = #map
+            end
+
+            for i = 1, #map do
+                bar.Elements[i]:SetAction(type, map[i])
+            end
+
+            bar:SetShown(self.AlwaysFlyout)
+        else
+            self.FlyoutBar      = nil
+        end
+    end
+
+    __NoCombat__()
+    function RefreshFlyout(self)
         if self.ActionType ~= "flyout" then
             self.FlyoutBar      = nil
             return
@@ -563,13 +819,12 @@ class "DancerButton" (function(_ENV)
 
         if numSlots and numSlots > 0 and isKnown then
             local changed       = false
-            local map           = _SpellFlyoutMap[self]
-
+            local map           = AUTOGEN_MAP[self]
 
             if not map then
                 changed         = true
                 map             = {}
-                _SpellFlyoutMap[self] = map
+                AUTOGEN_MAP[self] = map
             end
 
             local j             = 1
@@ -591,78 +846,37 @@ class "DancerButton" (function(_ENV)
                 changed         = true
             end
 
-            if changed then
-                local baseBar   = self:GetParent()
-                self.FlyoutBar  = self.FlyoutBar or ShadowBar.BarPool()
-
-                local bar       = self.FlyoutBar
-
-                -- Init
-                bar:SetScale(1)
-                bar.ActionBarMap    = ActionBarMap.NONE
-                bar.ElementWidth    = 36
-                bar.ElementHeight   = 36
-                bar.HSpacing        = baseBar.HSpacing or 1
-                bar.VSpacing        = baseBar.VSpacing or 1
-                bar.GridAlwaysShow  = baseBar.GridAlwaysShow
-
-                UpdateFlyoutLocation(self)
-
-                if self.FlyoutDirection == "TOP" then
-                    bar.Orientation = "VERTICAL"
-                    bar.TopToBottom = false
-                    bar.LeftToRight = true
-                    bar.ColumnCount = 1
-                    bar.RowCount    = #map
-                    bar.Count       = #map
-                elseif self.FlyoutDirection == "RIGHT" then
-                    bar.Orientation = "HORIZONTAL"
-                    bar.TopToBottom = true
-                    bar.LeftToRight = true
-                    bar.RowCount    = 1
-                    bar.ColumnCount = #map
-                    bar.Count       = #map
-                elseif self.FlyoutDirection == "BOTTOM" then
-                    bar.Orientation = "VERTICAL"
-                    bar.TopToBottom = true
-                    bar.LeftToRight = true
-                    bar.ColumnCount = 1
-                    bar.RowCount    = #map
-                    bar.Count       = #map
-                elseif self.FlyoutDirection == "LEFT" then
-                    bar.Orientation = "HORIZONTAL"
-                    bar.TopToBottom = true
-                    bar.LeftToRight = false
-                    bar.RowCount    = 1
-                    bar.ColumnCount = #map
-                    bar.Count       = #map
-                end
-
-                Next() NoCombat()
-
-                for i = 1, #map do
-                    bar.Elements[i].Spell = map[i]
-                end
-
-                bar:SetShown(self.AlwaysFlyout)
-            end
+            return changed and self:RefreshAutoGen(map, "spell")
         else
             self.FlyoutBar      = nil
         end
     end
 
-
     function Refresh(self)
         if self.ActionType == "flyout" then
-            NoCombat(function()
-                self:RegenerateFlyout()
-            end)
+            _SpellFlyoutMap[self]   = true
+            self:RefreshFlyout()
         elseif _SpellFlyoutMap[self] then
-            _SpellFlyoutMap[self] = nil
+            _SpellFlyoutMap[self]   = nil
+            AUTOGEN_MAP[self]       = nil
+            NoCombat(function() self.FlyoutBar = nil end)
+        end
 
-            NoCombat(function()
-                self.FlyoutBar  = nil
-            end)
+        if self.ActionType == "empty" then
+            -- If auto-gen add to black list
+            local baseBar           = self:GetParent()
+            if not baseBar.IsFlyoutBar then return end
+
+            local root              = baseBar:GetParent()
+            if not (root and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item) then return end
+
+            local id                = self:GetID()
+            local map               = AUTOGEN_MAP[root]
+            if not map or #map < id then return end
+
+            _AutoGenBlackList[tremove(map, id)] = true
+
+            root:RefreshAutoGen(map, "item")
         end
     end
 
@@ -778,7 +992,14 @@ class "ShadowBar" (function(_ENV)
 
     export{ max = math.max, min = math.min }
 
+    local stanceBar             = {}
     local autoFadeOutBar        = {}
+
+    Wow.FromEvent("UPDATE_SHAPESHIFT_FORMS"):Next():Subscribe(function()
+        for root in pairs(stanceBar) do
+            root:RefreshStance()
+        end
+    end)
 
     local function clearActionMap(self, map)
         self:SetAction(nil)
@@ -799,6 +1020,12 @@ class "ShadowBar" (function(_ENV)
             self:SetAction("action", self:GetID())
         elseif map == ActionBarMap.PET then
             self:SetAction("pet", self:GetID())
+        elseif map == ActionBarMap.STANCEBAR then
+            local index         = self:GetID()
+            if index <= GetNumShapeshiftForms() or 0 then
+                local id        = select(4, GetShapeshiftFormInfo(i))
+                if id then self:SetAction("spell", id) end
+            end
         end
     end
 
@@ -955,10 +1182,16 @@ class "ShadowBar" (function(_ENV)
     --- The action bar map(0: Main Bar, 1 ~ 6: Action Bar, Pet, Stance, WorldMark, RaidTarget)
     property "ActionBarMap"     { type = ActionBarMap, default = ActionBarMap.NONE,
         handler                 = function(self, map, old)
+            stanceBar[self]     = map == ActionBarMap.STANCEBAR
+
             for i = 1, self.Count do
                 local ele       = self.Elements[i]
                 clearActionMap(ele, old)
                 setupActionMap(ele, map)
+            end
+
+            if stanceBar[self] then
+                Next(RefreshStance, self)
             end
         end
     }
@@ -1104,6 +1337,22 @@ class "ShadowBar" (function(_ENV)
         end
 
         return false
+    end
+
+    __NoCombat__()
+    function RefreshStance(self)
+        if self.ActionBarMap ~= ActionBarMap.STANCEBAR then return end
+
+        local count             = GetNumShapeshiftForms() or 0
+
+        for i = 1, self.Count do
+            local id            = i <= count and select(4, GetShapeshiftFormInfo(i))
+            if id then
+                self.Elements[i]:SetAction("spell", id)
+            else
+                self.Elements[i]:SetAction(nil)
+            end
+        end
     end
 
     ------------------------------------------------------

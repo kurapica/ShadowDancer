@@ -11,6 +11,10 @@ Scorpio           "ShadowDancer"                     "1.0.0"
 
 namespace "ShadowDancer"
 
+import "Scorpio.Secure"
+import "System.Reactive"
+import "System.Text"
+
 export { floor = math.floor, min = math.min, max = math.max, ceil = math.ceil, tinsert = table.insert, sqrt = math.sqrt }
 
 BAR_MAX_BUTTON                  = 12
@@ -23,7 +27,6 @@ CURRENT_SPEC                    = false
 UNLOCK_BARS                     = false
 
 ANCHORS                         = XList(Enum.GetEnumValues(FramePoint)):Map(function(x) return { Anchor(x, 0, 0) } end):ToList()
-
 
 -----------------------------------------------------------
 -- Addon Event Handler
@@ -39,14 +42,44 @@ function OnLoad()
         ActionBars              = {}
     }
 
+    _SVDB.Char:SetDefault       {
+        AutoGenBlackList        = {},
+    }
+
     CharSV():SetDefault         {
         Draggable               = true,
         UseMouseDown            = false,
 
-        ActionBars              = {}
+        ActionBars              = {},
     }
 
     ShadowBar.PopupDuration     = _SVDB.PopupDuration
+
+    _AutoGenBlackList           = _SVDB.Char.AutoGenBlackList
+
+    _AuctionItemClasses         = {}
+
+    local i                     = 0
+    local itemCls               = GetItemClassInfo(i)
+
+    while itemCls and #itemCls > 0 do
+        _AuctionItemClasses[i]  = { name = itemCls }
+        _AuctionItemClasses[itemCls] = _AuctionItemClasses[i]
+
+        local j                 = 0
+        local itemSubCls        = GetItemSubClassInfo(i, j)
+
+        while itemSubCls and #itemSubCls > 0 do
+            _AuctionItemClasses[i][j] = itemSubCls
+            _AuctionItemClasses[i][itemSubCls] = j
+
+            j = j + 1
+            itemSubCls          = GetItemSubClassInfo(i, j)
+        end
+
+        i                       = i + 1
+        itemCls                 = GetItemClassInfo(i)
+    end
 end
 
 function OnEnable()
@@ -136,9 +169,9 @@ end
 -----------------------------------------------------------
 -- Slash Commands
 -----------------------------------------------------------
-__SlashCmd__ "/shd"          "unlock"
-__SlashCmd__ "/shadow"       "unlock"
-__SlashCmd__ "/shadowdancer" "unlock"
+__SlashCmd__ ("/shd",          "unlock", _Locale["Unlock the action bars"])
+__SlashCmd__ ("/shadow",       "unlock", _Locale["Unlock the action bars"])
+__SlashCmd__ ("/shadowdancer", "unlock", _Locale["Unlock the action bars"])
 function UnlockBars()
     if InCombatLockdown() or UNLOCK_BARS then return end
 
@@ -168,9 +201,9 @@ function UnlockBars()
     end
 end
 
-__SlashCmd__ "/shd"          "lock"
-__SlashCmd__ "/shadow"       "lock"
-__SlashCmd__ "/shadowdancer" "lock"
+__SlashCmd__ ("/shd",          "lock", _Locale["Lock the action bars"])
+__SlashCmd__ ("/shadow",       "lock", _Locale["Lock the action bars"])
+__SlashCmd__ ("/shadowdancer", "lock", _Locale["Lock the action bars"])
 function LockBars()
     if not UNLOCK_BARS then return end
     UNLOCK_BARS                 = false
@@ -198,14 +231,51 @@ function LockBars()
     end
 end
 
-__SlashCmd__ "/shd"          "bind"
-__SlashCmd__ "/shadow"       "bind"
-__SlashCmd__ "/shadowdancer" "bind"
+__SlashCmd__ ("/shd",          "bind", _Locale["Start binding key"])
+__SlashCmd__ ("/shadow",       "bind", _Locale["Start binding key"])
+__SlashCmd__ ("/shadowdancer", "bind", _Locale["Start binding key"])
 function BindKeys()
     if InCombatLockdown() then return end
     SecureActionButton.StartKeyBinding()
 end
 
+__SlashCmd__ ("/shd",          "auto", _Locale["Start binding auto gen rule"])
+__SlashCmd__ ("/shadow",       "auto", _Locale["Start binding auto gen rule"])
+__SlashCmd__ ("/shadowdancer", "auto", _Locale["Start binding auto gen rule"])
+__Async__(true)
+function BindAutoGen()
+    LockBars()
+
+    local current
+    local mask              = RECYCLE_MASKS()
+    mask.InAutoGenBindMode  = true
+
+    while not InCombatLockdown() and mask.InAutoGenBindMode do
+        local button        = GetMouseFocus()
+
+        if button then
+            button          = GetProxyUI(button)
+
+            if Class.IsObjectType(button, DancerButton) then
+                mask:SetParent(button)
+                mask:Show()
+
+                while button:IsMouseOver() and mask.InAutoGenBindMode do
+                    Next()
+                end
+
+                mask:Hide()
+            end
+        end
+
+        Next()
+    end
+
+    if mask.InAutoGenBindMode then
+        mask.InAutoGenBindMode = nil
+        RECYCLE_MASKS(mask)
+    end
+end
 
 -----------------------------------------------------------
 -- Helpers
@@ -228,6 +298,16 @@ function OnStopMoving(self)
 end
 
 function OpenMaskMenu(self, button)
+    if self.InAutoGenBindMode then
+        self.InAutoGenBindMode  = nil
+
+        if button == "LeftButton" then
+            ShowAutoGenBind(self:GetParent())
+        end
+
+        return RECYCLE_MASKS(self)
+    end
+
     local bar                   = self:GetParent()
     if not (bar and button == "RightButton") then return end
 
@@ -246,6 +326,21 @@ function OpenMaskMenu(self, button)
                 LockBars()
                 return SecureActionButton.StartKeyBinding()
             end
+        },
+        {
+            text                = _Locale["Auto Gen"],
+            submenu             = {
+                {
+                    text        = _Locale["Start Binding"],
+                    click       = BindAutoGen,
+                },
+                {
+                    text        = _Locale["Black List"],
+                    click       = function()
+                        BlackListDlg:Show()
+                    end
+                },
+            },
         },
         {
             text                = _Locale["Global Settings"],
@@ -338,7 +433,7 @@ function OpenMaskMenu(self, button)
                     end
                 },
                 {
-                    text                = _Locale["Scale"] .. " - " .. bar:GetScale(),
+                    text                = _Locale["Scale"] .. " - " .. ("%.2f"):format(bar:GetScale()),
                     click               = function()
                         local value     = PickRange(_Locale["Choose the scale"], 0.3, 3, 0.1, bar:GetScale())
                         if value then bar:SetScale(value) end
@@ -385,6 +480,19 @@ function OpenMaskMenu(self, button)
                 },
             },
         },
+        {
+            text                = _Locale["Import/Export"],
+            submenu             = {
+                {
+                    text        = _Locale["Export"],
+                    click       = ExportSettings,
+                },
+                {
+                    text        = _Locale["Import"],
+                    click       = ImportSettings,
+                },
+            },
+        },
     }
 
     FireSystemEvent("SHADOWDANCER_OPEN_MENU", bar, menu)
@@ -402,7 +510,17 @@ end
 
 function GetActionBarMapConfig(self)
     local config                = XDictionary(Enum.GetEnumValues(ActionBarMap)).Values:ToList():Sort():Map(function(v) return { text = _Locale[ActionBarMap(v)], checkvalue = v } end):ToTable()
-    config.check                = { get = function() return self.ActionBarMap end, set = function(value) Style[self].actionBarMap = value end }
+    config.check                = {
+        get                     = function()
+            return self.ActionBarMap
+        end,
+        set                     = function(value)
+            self.ActionBarMap = value
+            if value == ActionBarMap.PET or value == ActionBarMap.STANCEBAR then
+                self.GridAlwaysShow = false
+            end
+        end
+    }
     return config
 end
 
@@ -495,6 +613,49 @@ function DeleteBar(self)
     return ShadowBar.BarPool(self)
 end
 
+function ExportSettings()
+    LockBars()
+
+    Style[ExportGuide].Header.text = _Locale["Export"]
+    chkGlobalBars:Show()
+    chkCurrentBars:Show()
+    chkClearAllBars:Hide()
+    confirmButton:Show()
+    result:Hide()
+
+    chkGlobalBars:Enable()
+    chkCurrentBars:Enable()
+    chkClearAllBars:Disable()
+    confirmButton:Enable()
+
+    chkGlobalBars:SetChecked(true)
+    chkCurrentBars:SetChecked(true)
+    chkClearAllBars:SetChecked(false)
+
+    ExportGuide:Show()
+    ExportGuide.ExportMode      = true
+    Style[confirmButton].text   = _Locale["Next"]
+end
+
+function ImportSettings()
+    LockBars()
+
+    Style[ExportGuide].Header.text = _Locale["Import"]
+    chkGlobalBars:Hide()
+    chkCurrentBars:Hide()
+    chkClearAllBars:Hide()
+    confirmButton:Show()
+    result:Show()
+
+    ExportGuide:Show()
+    ExportGuide.ExportMode      = false
+    Style[confirmButton].text   = _Locale["Next"]
+end
+
+function loadImportSettings()
+    return Toolset.parsestring(Deflate.Decode(Base64.Decode(result:GetText())))
+end
+
 -----------------------------------------------------------
 -- Client Helpers
 -----------------------------------------------------------
@@ -542,4 +703,346 @@ else
             end
         end
     end
+end
+
+-----------------------------------------------------------
+-- Config UI
+-----------------------------------------------------------
+BlackListDlg                    = Dialog("ShadowDancer_Black_List")
+BlackListDlg:Hide()
+
+Viewer                          = HtmlViewer("Viewer", BlackListDlg)
+
+TEMPLATE_BLACKLIST              = TemplateString[[
+    <html>
+        <body>
+            @for id in pairs(target) do
+            <p><a href="@id">[@GetItemInfo(id)]</a></p>
+            @end
+        </body>
+    </html>
+]]
+
+
+Style[BlackListDlg]             = {
+    Header                      = { Text = _Locale["Auto Gen Black List"] },
+    Size                        = Size(300, 400),
+    clampedToScreen             = true,
+    minResize                   = Size(100, 100),
+
+    Viewer                      = {
+        location                = { Anchor("TOPLEFT", 24, -32), Anchor("BOTTOMRIGHT", -48, 48) },
+    },
+}
+
+function BlackListDlg:OnShow()
+    Viewer:SetText(TEMPLATE_BLACKLIST{ target = _AutoGenBlackList })
+end
+
+function Viewer:OnHyperlinkClick(id)
+    id                          = tonumber(id) or id
+    _AutoGenBlackList[id]       = nil
+
+    Viewer:SetText(TEMPLATE_BLACKLIST{ target = _AutoGenBlackList })
+
+    FireSystemEvent("BAG_UPDATE_DELAYED")
+end
+
+function Viewer:OnHyperlinkEnter(id)
+    id                          = tonumber(id) or id
+    if id then
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+        GameTooltip:SetHyperlink(select(2, GetItemInfo(id)))
+        GameTooltip:Show()
+    end
+end
+
+function Viewer:OnHyperlinkLeave(id)
+    GameTooltip:Hide()
+end
+
+
+-----------------------------------------------------------
+-- Export/Import UI
+-----------------------------------------------------------
+ExportGuide                     = Dialog("ShadowDancer_Export_Guide")
+ExportGuide:Hide()
+
+chkGlobalBars                   = UICheckButton("GlobalBars", ExportGuide)
+chkCurrentBars                  = UICheckButton("CurrentBar", ExportGuide)
+chkClearAllBars                 = UICheckButton("ClearAllBars", ExportGuide)
+confirmButton                   = UIPanelButton("Confirm",    ExportGuide)
+result                          = InputScrollFrame("Result",  ExportGuide)
+
+Style[ExportGuide]              = {
+    Header                      = { Text = "ShadowDancer" },
+    Size                        = Size(400, 400),
+    clampedToScreen             = true,
+    minResize                   = Size(200, 200),
+
+    GlobalBars                  = {
+        location                = { Anchor("TOPLEFT", 24, -32) },
+        label                   = { text = _Locale["Global Action Bars"] },
+    },
+    CurrentBar                  = {
+        location                = { Anchor("TOP", 0, -16, "GlobalBars", "BOTTOM") },
+        label                   = { text = _Locale["Current Action Bars"] },
+    },
+    ClearAllBars                = {
+        location                = { Anchor("TOP", 0, -16, "CurrentBar", "BOTTOM") },
+        label                   = { text = _Locale["Clear Existed Bars"] },
+    },
+
+    Result                      = {
+        maxLetters              = 0,
+        location                = { Anchor("TOPLEFT", 24, -32), Anchor("BOTTOMRIGHT", -24, 60) },
+    },
+
+    Confirm                     = {
+        location                = { Anchor("BOTTOMLEFT", 24, 16 ) },
+        text                    = _Locale["Next"],
+    },
+}
+
+function confirmButton:OnClick()
+    if ExportGuide.ExportMode then
+        Style[confirmButton].text       = _Locale["Close"]
+
+        if chkGlobalBars:IsShown() then
+            local settings              = {}
+            if chkGlobalBars:GetChecked() then
+                settings.GlobalBars     = GLOBAL_BARS:Map(ShadowBar.GetProfile):ToTable()
+            end
+            if chkCurrentBars:GetChecked() then
+                settings.CurrentBars    = CURRENT_BARS:Map(function(self) return self:GetProfile(true) end):ToTable()
+            end
+
+            chkGlobalBars:Hide()
+            chkCurrentBars:Hide()
+            chkClearAllBars:Hide()
+            confirmButton:Show()
+
+            result:SetText(Base64.Encode(Deflate.Encode(Toolset.tostring(settings)), true))
+            result:Show()
+        else
+            ExportGuide:Hide()
+        end
+    else
+        if chkGlobalBars:IsShown() then
+            if InCombatLockdown() then return end
+
+            local settings              = ExportGuide.TempSettings
+            if chkGlobalBars:GetChecked() and settings.GlobalBars and #settings.GlobalBars > 0 then
+                if chkClearAllBars:GetChecked() then
+                    for i = 1, #settings.GlobalBars do
+                        local bar       = GLOBAL_BARS[i]
+                        if not bar then
+                            bar         = ShadowBar.BarPool()
+                            GLOBAL_BARS:Insert(bar)
+                        end
+
+                        bar:SetProfile(settings.GlobalBars[i])
+                    end
+
+                    for i = #GLOBAL_BARS, #settings.GlobalBars + 1, -1 do
+                        ShadowBar.BarPool(GLOBAL_BARS:RemoveByIndex(i))
+                    end
+                else
+                    for i = 1, #settings.GlobalBars do
+                        local bar       = ShadowBar.BarPool()
+                        GLOBAL_BARS:Insert(bar)
+                        bar:SetProfile(settings.GlobalBars[i])
+                    end
+                end
+            end
+
+            if chkCurrentBars:GetChecked() and settings.CurrentBars and #settings.CurrentBars > 0  then
+                if chkClearAllBars:GetChecked() then
+                    for i = 1, #settings.CurrentBars do
+                        local bar       = CURRENT_BARS[i]
+                        if not bar then
+                            bar         = ShadowBar.BarPool()
+                            CURRENT_BARS:Insert(bar)
+                        end
+
+                        bar:SetProfile(settings.CurrentBars[i])
+                    end
+
+                    for i = #CURRENT_BARS, #settings.CurrentBars + 1, -1 do
+                        ShadowBar.BarPool(CURRENT_BARS:RemoveByIndex(i))
+                    end
+                else
+                    for i = 1, #settings.CurrentBars do
+                        local bar       = ShadowBar.BarPool()
+                        CURRENT_BARS:Insert(bar)
+                        bar:SetProfile(settings.CurrentBars[i])
+                    end
+                end
+            end
+
+            ExportGuide.TempSettings    = nil
+            ExportGuide:Hide()
+        else
+            local ok, settings          = pcall(loadImportSettings)
+            if ok and type(settings) == "table" then
+                chkGlobalBars:Show()
+                chkCurrentBars:Show()
+                chkClearAllBars:Show()
+                confirmButton:Show()
+                result:Hide()
+
+                if settings.GlobalBars then
+                    chkGlobalBars:Enable()
+                    chkGlobalBars:SetChecked(true)
+                else
+                    chkGlobalBars:Disable()
+                    chkGlobalBars:SetChecked(false)
+                end
+
+                if settings.CurrentBars then
+                    chkCurrentBars:Enable()
+                    chkCurrentBars:SetChecked(true)
+                else
+                    chkCurrentBars:Disable()
+                    chkCurrentBars:SetChecked(false)
+                end
+
+                chkClearAllBars:Enable()
+                chkClearAllBars:SetChecked(false)
+
+                ExportGuide.TempSettings = settings
+            end
+        end
+    end
+end
+
+
+-----------------------------------------------------------
+-- Auto Gen Binding UI
+-----------------------------------------------------------
+BindingGuide                    = Dialog("ShadowDancer_AutoGen_Guide")
+BindingGuide:Hide()
+
+cboAutoGenType                  = ComboBox("AutoGenType",  BindingGuide)
+cboItemClass                    = ComboBox("ItemClass",    BindingGuide)
+cboSubClass                     = ComboBox("SubClass",     BindingGuide)
+confirmAutoGen                  = UIPanelButton("Confirm", BindingGuide)
+
+Style[BindingGuide]             = {
+    Header                      = { Text = _Locale["Auto Gen Binding"] },
+    Size                        = Size(400, 400),
+    clampedToScreen             = true,
+    minResize                   = Size(200, 200),
+
+    AutoGenType                 = {
+        location                = { Anchor("TOPLEFT", 140, -48) },
+        size                    = Size(200, 28),
+        label                   = {
+            text                = _Locale["Auto Gen Type"],
+            location            = { Anchor("RIGHT", -24, 0, nil, "LEFT") },
+        },
+    },
+    ItemClass                   = {
+        location                = { Anchor("TOPLEFT", 0, -16, "AutoGenType", "BOTTOMLEFT") },
+        size                    = Size(200, 28),
+        label                   = {
+            text                = _Locale["Item Class"],
+            location            = { Anchor("RIGHT", -24, 0, nil, "LEFT") },
+        },
+    },
+    SubClass                    = {
+        location                = { Anchor("TOPLEFT", 0, -16, "ItemClass", "BOTTOMLEFT") },
+        size                    = Size(200, 28),
+        label                   = {
+            text                = _Locale["Item Sub Class"],
+            location            = { Anchor("RIGHT", -24, 0, nil, "LEFT") },
+        },
+    },
+
+    Confirm                     = {
+        location                = { Anchor("BOTTOMLEFT", 24, 16 ) },
+        text                    = _Locale["Confirm"],
+    },
+}
+
+function ShowAutoGenBind(self)
+    BindingGuide.Button         = self
+    BindingGuide:Show()
+
+    local rule                  = self.AutoGenRule
+    if rule then
+        cboAutoGenType.SelectedValue = rule.type
+        cboAutoGenType:OnSelectChanged(rule.type)
+
+        if rule.type == AutoGenRuleType.Item then
+            cboItemClass.SelectedValue = rule.class
+            cboItemClass:OnSelectChanged(rule.class)
+
+            cboSubClass.SelectedValue  = rule.subclass or 100
+        end
+    else
+        cboAutoGenType.SelectedValue = 0
+        cboAutoGenType:OnSelectChanged(0)
+    end
+end
+
+function BindingGuide:OnShow()
+    self.OnShow                 = nil
+
+    cboAutoGenType:ClearItems()
+    cboAutoGenType.Items[0]     = _Locale["NONE"]
+
+    for _, v in XDictionary(Enum.GetEnumValues(AutoGenRuleType)).Values:ToList():Sort():GetIterator() do
+        cboAutoGenType.Items[v] = _Locale[AutoGenRuleType(v)]
+    end
+
+    cboItemClass:Hide()
+    cboSubClass:Hide()
+
+    cboItemClass:ClearItems()
+    cboSubClass:ClearItems()
+
+    for i = 0, #_AuctionItemClasses do
+        cboItemClass.Items[i]   = _AuctionItemClasses[i].name
+    end
+end
+
+function cboAutoGenType:OnSelectChanged(value)
+    if value == AutoGenRuleType.Item then
+        cboItemClass:Show()
+        cboSubClass:Show()
+    else
+        cboItemClass:Hide()
+        cboSubClass:Hide()
+    end
+end
+
+function cboItemClass:OnSelectChanged(value)
+    cboSubClass:ClearItems()
+
+    cboSubClass.Items[100]      = _Locale["All"]
+
+    if not _AuctionItemClasses[value] then return end
+
+    for i, subcls in ipairs(_AuctionItemClasses[value]) do
+        cboSubClass.Items[i]    = subcls
+    end
+end
+
+function confirmAutoGen:OnClick()
+    BindingGuide:Hide()
+
+    if not BindingGuide.Button then return end
+
+    if cboAutoGenType.SelectedValue == 0 then
+        BindingGuide.Button.AutoGenRule = nil
+    else
+        BindingGuide.Button.AutoGenRule = {
+            type                = cboAutoGenType.SelectedValue,
+            class               = cboAutoGenType.SelectedValue == AutoGenRuleType.Item and cboItemClass.SelectedValue or nil,
+            subclass            = cboAutoGenType.SelectedValue == AutoGenRuleType.Item and cboSubClass.SelectedValue ~= 100 and cboSubClass.SelectedValue or nil,
+        }
+    end
+
+    BindingGuide.Button         = nil
 end
