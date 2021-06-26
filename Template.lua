@@ -149,6 +149,7 @@ do
         button:SetProfile(nil)
         button:ClearAllPoints()
         button:Hide()
+        button:SetParent(UIParent)
     end
 
     function RECYCLE_BARS:OnPop(bar)
@@ -172,18 +173,18 @@ do
     function UpdateFlyoutLocation(self)
         if not self.FlyoutBar then return end
 
-        local dir                   = self.FlyoutDirection or "TOP"
+        local dir                   = self.FlyoutDirection or "UP"
         local btnCount              = self.FlyoutBar.Count
         if btnCount == 0 then btnCount = 1 end
 
-        if dir == "TOP" then
+        if dir == "UP" then
             self.FlyoutBar:SetLocation{ Anchor("BOTTOM", 0, self.FlyoutBar.VSpacing + 11, nil, "TOP") }
             self.FlyoutBar.TopToBottom = false
             self.FlyoutBar.LeftToRight = true
             self.FlyoutBar.Orientation = "VERTICAL"
             self.FlyoutBar.RowCount    = btnCount
             self.FlyoutBar.ColumnCount = 1
-        elseif dir == "BOTTOM" then
+        elseif dir == "DOWN" then
             self.FlyoutBar:SetLocation{ Anchor("TOP", 0, - self.FlyoutBar.VSpacing - 11, nil, "BOTTOM") }
             self.FlyoutBar.TopToBottom = true
             self.FlyoutBar.LeftToRight = true
@@ -399,11 +400,11 @@ class "DancerButton" (function(_ENV)
     --                     Helper                       --
     ------------------------------------------------------
     local function getDirectionValue(dir)
-        return dir == "TOP" and 0 or dir == "RIGHT" and 1 or dir == "BOTTOM" and 2 or dir == "LEFT" and 3
+        return dir == "UP" and 0 or dir == "RIGHT" and 1 or dir == "DOWN" and 2 or dir == "LEFT" and 3
     end
 
     local function parseDirectionValue(val)
-        return val == 0 and "TOP" or val == 1 and "RIGHT" or val == 2 and "BOTTOM" or val == 3 and "LEFT"
+        return val == 0 and "UP" or val == 1 and "RIGHT" or val == 2 and "DOWN" or val == 3 and "LEFT"
     end
 
     local function clockwise(self, diff)
@@ -443,29 +444,29 @@ class "DancerButton" (function(_ENV)
             local col           = floor(abs(x > cx and ((x + w / 2 - cx) / w) or ((x - w / 2 - cx) / w)))
 
             if(row >= 1 or col >= 1) then
-                local dir       = row >= col and (y > cy and "TOP" or "BOTTOM") or (x > cx and "RIGHT" or "LEFT")
+                local dir       = row >= col and (y > cy and "UP" or "DOWN") or (x > cx and "RIGHT" or "LEFT")
 
                 if not (isGenBar or isAdjustBar) then
                     -- Init check
-                    if baseBarRoot and isLast and ((baseBar.Orientation == "HORIZONTAL" and (dir == "LEFT" or dir == "RIGHT")) or (baseBar.Orientation == "VERTICAL" and (dir == "TOP" or dir == "BOTTOM"))) then
+                    if baseBarRoot and isLast and ((baseBar.Orientation == "HORIZONTAL" and (dir == "LEFT" or dir == "RIGHT")) or (baseBar.Orientation == "VERTICAL" and (dir == "UP" or dir == "DOWN"))) then
                         isGenBar        = true  -- Change the bar of the base
 
                         -- The flyout has a auto-gen feature, so can't modify
                         if baseBarRoot and (baseBarRoot.ActionType == "flyout" or baseBarRoot.AutoGenRule) then return end
+                        btnProfiles     = XList(baseBar:GetIterator()):Map(DancerButton.GetProfile):ToList()  -- temporary keep the button profiles
 
                         self            = baseBarRoot
                         baseBar         = self:GetParent()
                         orgDir          = self.FlyoutDirection
                         cx, cy          = self:GetCenter()
                         orgFlyout       = self.FlyoutDirection
-                        btnProfiles     = XList(baseBar:GetIterator()):Map(DancerButton.GetProfile):ToList()  -- temporary keep the button profiles
 
                         self.FlyoutBar.GridAlwaysShow = true
 
                         for _, btn in self.FlyoutBar:GetIterator() do
                             if btn.FlyoutBar then btn.FlyoutBar:Hide() end
                         end
-                    elseif not baseBar.IsFlyoutBar or ((baseBar.Orientation == "HORIZONTAL" and (dir == "TOP" or dir == "BOTTOM")) or (baseBar.Orientation == "VERTICAL" and (dir == "LEFT" or dir == "RIGHT"))) then
+                    elseif not baseBar.IsFlyoutBar or ((baseBar.Orientation == "HORIZONTAL" and (dir == "UP" or dir == "DOWN")) or (baseBar.Orientation == "VERTICAL" and (dir == "LEFT" or dir == "RIGHT"))) then
                         -- For flyout bar, only cross direction is allowed
                         if self.FlyoutBar then
                             isAdjustBar = true
@@ -485,7 +486,7 @@ class "DancerButton" (function(_ENV)
                         end
                     end
                 elseif isGenBar then
-                    if not orgDir and (not baseBar.IsFlyoutBar or ((baseBar.Orientation == "HORIZONTAL" and (dir == "TOP" or dir == "BOTTOM")) or (baseBar.Orientation == "VERTICAL" and (dir == "LEFT" or dir == "RIGHT")))) then
+                    if not orgDir and (not baseBar.IsFlyoutBar or ((baseBar.Orientation == "HORIZONTAL" and (dir == "UP" or dir == "DOWN")) or (baseBar.Orientation == "VERTICAL" and (dir == "LEFT" or dir == "RIGHT")))) then
                         orgDir          = dir
                     end
 
@@ -493,10 +494,10 @@ class "DancerButton" (function(_ENV)
                     local columnCount   = 1
                     local count         = 0
 
-                    if orgDir == "TOP" then
+                    if orgDir == "UP" then
                         count           = row
                         rowCount        = count
-                    elseif orgDir == "BOTTOM" then
+                    elseif orgDir == "DOWN" then
                         count           = row
                         rowCount        = count
                     elseif orgDir == "LEFT" then
@@ -533,7 +534,7 @@ class "DancerButton" (function(_ENV)
                         orgDir          = nil
                     end
                 elseif isAdjustBar then
-                    if not baseBar.IsFlyoutBar or ((baseBar.Orientation == "HORIZONTAL" and (dir == "TOP" or dir == "BOTTOM")) or (baseBar.Orientation == "VERTICAL" and (dir == "LEFT" or dir == "RIGHT"))) then
+                    if not baseBar.IsFlyoutBar or ((baseBar.Orientation == "HORIZONTAL" and (dir == "UP" or dir == "DOWN")) or (baseBar.Orientation == "VERTICAL" and (dir == "LEFT" or dir == "RIGHT"))) then
                         self.FlyoutDirection = dir
                     end
                 end
@@ -702,7 +703,8 @@ class "DancerButton" (function(_ENV)
                 self:SetAction(config.ActionType, config.ActionTarget, config.ActionDetail)
             end
 
-            self.FlyoutDirection= config.FlyoutDirection or "TOP"
+            -- Fix for the first version
+            self.FlyoutDirection= config.FlyoutDirection == "TOP" and "UP" or config.FlyoutDirection == "BOTTOM" and "DOWN" or config.FlyoutDirection or "UP"
             self.AlwaysFlyout   = config.AlwaysFlyout or false
 
             self.HotKey         = config.HotKey
@@ -769,7 +771,7 @@ class "DancerButton" (function(_ENV)
 
             UpdateFlyoutLocation(self)
 
-            if self.FlyoutDirection == "TOP" then
+            if self.FlyoutDirection == "UP" then
                 bar.Orientation = "VERTICAL"
                 bar.TopToBottom = false
                 bar.LeftToRight = true
@@ -783,7 +785,7 @@ class "DancerButton" (function(_ENV)
                 bar.RowCount    = 1
                 bar.ColumnCount = #map
                 bar.Count       = #map
-            elseif self.FlyoutDirection == "BOTTOM" then
+            elseif self.FlyoutDirection == "DOWN" then
                 bar.Orientation = "VERTICAL"
                 bar.TopToBottom = true
                 bar.LeftToRight = true

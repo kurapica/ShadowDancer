@@ -28,6 +28,8 @@ UNLOCK_BARS                     = false
 
 ANCHORS                         = XList(Enum.GetEnumValues(FramePoint)):Map(function(x) return { Anchor(x, 0, 0) } end):ToList()
 
+IS_SECURE_LOADED                = false
+
 -----------------------------------------------------------
 -- Addon Event Handler
 -----------------------------------------------------------
@@ -95,10 +97,12 @@ function OnSpecChanged(self, spec)
     local preProfile
 
     -- Save the config if we have the bars
-    if #CURRENT_BARS > 0 and CURRENT_SPEC then
+    if #CURRENT_BARS > 0 and CURRENT_SPEC and IS_SECURE_LOADED then
         preProfile              = CURRENT_BARS:Map(ShadowBar.GetProfile):ToTable()
         CharSV(CURRENT_SPEC).ActionBars = preProfile
     end
+
+    IS_SECURE_LOADED            = false
 
     CURRENT_SPEC                = spec or 1
 
@@ -150,9 +154,13 @@ function OnSpecChanged(self, spec)
     for i = #CURRENT_BARS, barCount + 1, -1 do
         ShadowBar.BarPool(CURRENT_BARS:RemoveByIndex(i))
     end
+
+    IS_SECURE_LOADED            = true
 end
 
 function OnQuit()
+    if not IS_SECURE_LOADED then return end
+
     CharSV().ActionBars         = CURRENT_BARS:Map(ShadowBar.GetProfile):ToTable()
     _SVDB.ActionBars            = GLOBAL_BARS:Map(ShadowBar.GetProfile):ToTable()
 end
