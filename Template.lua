@@ -1023,7 +1023,7 @@ class "ShadowBar" (function(_ENV)
         elseif map == ActionBarMap.STANCEBAR then
             local index         = self:GetID()
             if index <= GetNumShapeshiftForms() or 0 then
-                local id        = select(4, GetShapeshiftFormInfo(i))
+                local id        = select(4, GetShapeshiftFormInfo(index))
                 if id then self:SetAction("spell", id) end
             end
         end
