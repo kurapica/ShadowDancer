@@ -303,6 +303,11 @@ do
                 end
 
                 for root in pairs(changed) do
+                    local map       = AUTOGEN_MAP[root]
+                    for i = #map, indexMap[root] + 1, -1 do
+                        map[i]      = nil
+                    end
+
                     root:RefreshAutoGen(AUTOGEN_MAP[root], "item")
                 end
 
@@ -356,14 +361,12 @@ do
     end
 
     function RegisterAutoItemGen(self)
-        if AUTOGEN_ITEM_ROOT[self] then return end
-
         -- For now only allow one button for the same class and subclass
         local itemClass, itemSubClass = self.AutoGenRule.class, self.AutoGenRule.subclass
         if not itemClass then self.AutoGenRule = nil return  end
 
         for root in pairs(AUTOGEN_ITEM_ROOT) do
-            if root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item then
+            if root ~= self and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item then
                 if root.AutoGenRule.class == itemClass and (root.AutoGenRule.subclass == itemSubClass or not itemSubClass) then
                     root.AutoGenRule = nil
                     AUTOGEN_ITEM_ROOT[root] = nil
@@ -702,7 +705,6 @@ class "DancerButton" (function(_ENV)
             self.FlyoutDirection= config.FlyoutDirection or "TOP"
             self.AlwaysFlyout   = config.AlwaysFlyout or false
 
-            self.AutoKeyBinding = parent.IsFlyoutBar
             self.HotKey         = config.HotKey
 
             if config.FlyoutBar then
@@ -1133,6 +1135,7 @@ class "ShadowBar" (function(_ENV)
 
         setupActionMap(ele, self.ActionBarMap)
         ele.GridAlwaysShow      = self.GridAlwaysShow
+        ele.AutoKeyBinding      = self.IsFlyoutBar
     end
 
     local function onElementRemove(self, ele)
