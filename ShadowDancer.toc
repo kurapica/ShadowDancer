@@ -1,9 +1,9 @@
 ## Interface: 90005
 ## Title: ShadowDancer
 ## Author: kurapica125@outlook.com
-## Version: r001
+## Version: r002
 ## Notes: A flexible action bar mod
-## Dependencies: Scorpio.Action, Scorpio.Widget
+## Dependencies: Scorpio.Widget, Scorpio.Action
 ## OptionalDeps: Masque
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
