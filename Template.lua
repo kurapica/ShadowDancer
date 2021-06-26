@@ -868,19 +868,29 @@ class "DancerButton" (function(_ENV)
 
         if self.ActionType == "empty" then
             -- If auto-gen add to black list
-            local baseBar           = self:GetParent()
-            if not baseBar.IsFlyoutBar then return end
+            if self.AutoGenRule and self.AutoGenRule.type == AutoGenRuleType.Item then
+                local map               = AUTOGEN_MAP[self]
+                if map and map[0] then
+                    _AutoGenBlackList[map[0]] = true
+                    map[0]              = tremove(map, 1)
 
-            local root              = baseBar:GetParent()
-            if not (root and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item) then return end
+                    self:RefreshAutoGen(map, "item")
+                end
+            else
+                local baseBar           = self:GetParent()
+                if not baseBar.IsFlyoutBar then return end
 
-            local id                = self:GetID()
-            local map               = AUTOGEN_MAP[root]
-            if not map or #map < id then return end
+                local root              = baseBar:GetParent()
+                if not (root and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item) then return end
 
-            _AutoGenBlackList[tremove(map, id)] = true
+                local id                = self:GetID()
+                local map               = AUTOGEN_MAP[root]
+                if not map or #map < id then return end
 
-            root:RefreshAutoGen(map, "item")
+                _AutoGenBlackList[tremove(map, id)] = true
+
+                root:RefreshAutoGen(map, "item")
+            end
         end
     end
 
