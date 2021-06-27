@@ -1147,7 +1147,7 @@ CustomBindGuide                 = Dialog("ShadowDancer_CustomBind_Guide")
 CustomBindGuide:Hide()
 
 inputCustomName                 = InputBox("Name", CustomBindGuide)
-customIcon                      = Texture("Icon", CustomBindGuide)
+customIcon                      = Button("Icon", CustomBindGuide)
 inputMacroText                  = InputScrollFrame("Macro", CustomBindGuide)
 iconPanel                       = ElementPanel("Panel", CustomBindGuide)
 confirmCustom                   = UIPanelButton("Confirm", CustomBindGuide)
@@ -1171,6 +1171,7 @@ Style[CustomBindGuide]          = {
     Icon                        = {
         location                = { Anchor("LEFT", 8, 0, "Name", "RIGHT")},
         size                    = Size(36, 36),
+        NormalTexture           = { setAllPoints = true },
     },
     Macro                       = {
         label                   = {
@@ -1261,7 +1262,12 @@ end
 
 local onIconClick               = function(self)
     customIcon.Icon             = self.Icon
-    customIcon:SetTexture(self.Icon)
+    customIcon:GetPropertyChild("NormalTexture"):SetTexture(self.Icon)
+end
+
+function customIcon:OnClick()
+    customIcon.Icon             = nil
+    customIcon:GetPropertyChild("NormalTexture"):SetTexture(nil)
 end
 
 function LoadIconPage(page)
@@ -1299,6 +1305,8 @@ function confirmCustom:OnClick()
             CustomBindGuide.Button:SetAction(macro and macro ~= "" and "macrotext" or "custom", macro and macro ~= "" and macro or Toolset.fakefunc)
             CustomBindGuide.Button.CustomText = name and name ~= "" and name or nil
             CustomBindGuide.Button.CustomTexture = icon
+        else
+            CustomBindGuide.Button:SetAction(nil)
         end
     end
 
@@ -1341,7 +1349,7 @@ function ShowCustomBind(self)
     CustomBindGuide.Button      = self
 
     customIcon.Icon             = self.CustomTexture
-    customIcon:SetTexture(self.CustomTexture)
+    customIcon:GetPropertyChild("NormalTexture"):SetTexture(customIcon.Icon)
     inputCustomName:SetText(self.CustomText or "")
     inputMacroText:SetText(self.ActionType == "macrotext" and self.ActionTarget or "")
 
