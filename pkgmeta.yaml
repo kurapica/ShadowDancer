@@ -5,3 +5,6 @@ required-dependencies:
   - Scorpio
 
 manual-changelog: changelog.txt
+
+ignore:
+  - img
