@@ -285,6 +285,44 @@ function BindAutoGen()
     end
 end
 
+__SlashCmd__ ("/shd",          "custom", _Locale["Start binding custom name and texture"])
+__SlashCmd__ ("/shadow",       "custom", _Locale["Start binding custom name and texture"])
+__SlashCmd__ ("/shadowdancer", "custom", _Locale["Start binding custom name and texture"])
+__Async__(true)
+function BindCustomAction()
+    LockBars()
+
+    local current
+    local mask              = RECYCLE_MASKS()
+    mask.InCustomBindMode   = true
+
+    while not InCombatLockdown() and mask.InCustomBindMode do
+        local button        = GetMouseFocus()
+
+        if button then
+            button          = GetProxyUI(button)
+
+            if Class.IsObjectType(button, DancerButton) and button.IsCustomable then
+                mask:SetParent(button)
+                mask:Show()
+
+                while button:IsMouseOver() and mask.InCustomBindMode do
+                    Next()
+                end
+
+                mask:Hide()
+            end
+        end
+
+        Next()
+    end
+
+    if mask.InCustomBindMode then
+        mask.InCustomBindMode = nil
+        RECYCLE_MASKS(mask)
+    end
+end
+
 -----------------------------------------------------------
 -- Helpers
 -----------------------------------------------------------
@@ -314,6 +352,14 @@ function OpenMaskMenu(self, button)
         end
 
         return RECYCLE_MASKS(self)
+    elseif self.InCustomBindMode then
+        self.InCustomBindMode   = nil
+
+        if button == "LeftButton" then
+            ShowCustomBind(self:GetParent())
+        end
+
+        return RECYCLE_MASKS(self)
     end
 
     local bar                   = self:GetParent()
@@ -336,17 +382,26 @@ function OpenMaskMenu(self, button)
             end
         },
         {
-            text                = _Locale["Auto Gen"],
+            text                = _Locale["Button Operation"],
             submenu             = {
                 {
-                    text        = _Locale["Start Binding"],
-                    click       = BindAutoGen,
+                    text        = _Locale["Custom Action"],
+                    click       = BindCustomAction,
                 },
                 {
-                    text        = _Locale["Black List"],
-                    click       = function()
-                        BlackListDlg:Show()
-                    end
+                    text        = _Locale["Auto Gen"],
+                    submenu     = {
+                        {
+                            text    = _Locale["Start Binding"],
+                            click   = BindAutoGen,
+                        },
+                        {
+                            text    = _Locale["Black List"],
+                            click   = function()
+                                BlackListDlg:Show()
+                            end
+                        },
+                    },
                 },
             },
         },
@@ -496,6 +551,10 @@ function OpenMaskMenu(self, button)
                     click       = ExportSettings,
                 },
                 {
+                    text        = _Locale["Export Current Bar"],
+                    click       = function() ExportSettings(bar) end,
+                },
+                {
                     text        = _Locale["Import"],
                     click       = ImportSettings,
                 },
@@ -539,7 +598,6 @@ function GetAutoHideMenu(self)
             click               = function()
                 local new       = PickMacroCondition(_Locale["Please select the macro condition"])
                 if new then
-                    print("new", new)
                     if self.AutoHideCondition then
                         for _, macro in ipairs(self.AutoHideCondition) do
                             if macro == new then return end
@@ -621,24 +679,34 @@ function DeleteBar(self)
     return ShadowBar.BarPool(self)
 end
 
-function ExportSettings()
+function ExportSettings(bar)
     LockBars()
 
     Style[ExportGuide].Header.text = _Locale["Export"]
-    chkGlobalBars:Show()
-    chkCurrentBars:Show()
-    chkClearAllBars:Hide()
-    confirmButton:Show()
-    result:Hide()
 
-    chkGlobalBars:Enable()
-    chkCurrentBars:Enable()
-    chkClearAllBars:Disable()
-    confirmButton:Enable()
+    if not bar then
+        chkGlobalBars:Show()
+        chkCurrentBars:Show()
+        chkClearAllBars:Hide()
+        confirmButton:Show()
+        result:Hide()
 
-    chkGlobalBars:SetChecked(true)
-    chkCurrentBars:SetChecked(true)
-    chkClearAllBars:SetChecked(false)
+        chkGlobalBars:Enable()
+        chkCurrentBars:Enable()
+        chkClearAllBars:Disable()
+        confirmButton:Enable()
+
+        chkGlobalBars:SetChecked(true)
+        chkCurrentBars:SetChecked(true)
+        chkClearAllBars:SetChecked(false)
+    else
+        chkGlobalBars:Hide()
+        chkCurrentBars:Hide()
+        chkClearAllBars:Hide()
+        confirmButton:Show()
+        result:Show()
+        result:SetText(Base64.Encode(Deflate.Encode(Toolset.tostring{ ActionBar = bar:GetProfile(true) })))
+    end
 
     ExportGuide:Show()
     ExportGuide.ExportMode      = true
@@ -813,6 +881,12 @@ Style[ExportGuide]              = {
 }
 
 function confirmButton:OnClick()
+    if InCombatLockdown() then
+        ExportGuide.TempSettings= nil
+        ExportGuide:Hide()
+        return
+    end
+
     if ExportGuide.ExportMode then
         Style[confirmButton].text       = _Locale["Close"]
 
@@ -837,8 +911,6 @@ function confirmButton:OnClick()
         end
     else
         if chkGlobalBars:IsShown() then
-            if InCombatLockdown() then return end
-
             local settings              = ExportGuide.TempSettings
             if chkGlobalBars:GetChecked() and settings.GlobalBars and #settings.GlobalBars > 0 then
                 if chkClearAllBars:GetChecked() then
@@ -893,6 +965,17 @@ function confirmButton:OnClick()
         else
             local ok, settings          = pcall(loadImportSettings)
             if ok and type(settings) == "table" then
+                if settings.ActionBar then
+                    local bar   = ShadowBar.BarPool()
+                    CURRENT_BARS:Insert(bar)
+                    bar:SetProfile(settings.ActionBar)
+
+                    ExportGuide.TempSettings = nil
+                    ExportGuide:Hide()
+
+                    return
+                end
+
                 chkGlobalBars:Show()
                 chkCurrentBars:Show()
                 chkClearAllBars:Show()
@@ -1053,4 +1136,214 @@ function confirmAutoGen:OnClick()
     end
 
     BindingGuide.Button         = nil
+end
+
+-----------------------------------------------------------
+-- Custom Action Bind
+-----------------------------------------------------------
+local MACRO_ICON_FILENAMES
+
+CustomBindGuide                 = Dialog("ShadowDancer_CustomBind_Guide")
+CustomBindGuide:Hide()
+
+inputCustomName                 = InputBox("Name", CustomBindGuide)
+customIcon                      = Texture("Icon", CustomBindGuide)
+inputMacroText                  = InputScrollFrame("Macro", CustomBindGuide)
+iconPanel                       = ElementPanel("Panel", CustomBindGuide)
+confirmCustom                   = UIPanelButton("Confirm", CustomBindGuide)
+cancelCustom                    = UIPanelButton("Cancel", CustomBindGuide)
+btnNextPage                     = UIPanelButton("Next", CustomBindGuide)
+btnPrevPage                     = UIPanelButton("Prev", CustomBindGuide)
+
+Style[CustomBindGuide]          = {
+    Header                      = { text = _Locale["Custom Name & Icon Bind"] },
+    Size                        = Size(460, 500),
+    clampedToScreen             = true,
+    resizable                   = false,
+    Name                        = {
+        location                = { Anchor("TOPLEFT", 140, -30) },
+        size                    = Size(200, 28),
+        label                   = {
+            text                = _Locale["Custom Name"],
+            location            = { Anchor("LEFT", -120, 0 )},
+        }
+    },
+    Icon                        = {
+        location                = { Anchor("LEFT", 8, 0, "Name", "RIGHT")},
+        size                    = Size(36, 36),
+    },
+    Macro                       = {
+        label                   = {
+            location            = { Anchor("BOTTOMLEFT", 0, 4, nil, "TOPLEFT") },
+            text                = _Locale["Macro Text"],
+        },
+        location                = { Anchor("TOPLEFT", 0, -32, "Name.label", "BOTTOMLEFT"), Anchor("RIGHT", -36, 0) },
+        height                  = 80,
+        maxBytes                = 255,
+    },
+    Panel                       = {
+        enableMouseWheel        = true,
+        location                = { Anchor("TOPLEFT", 0, -8, "Macro", "BOTTOMLEFT") },
+        elementWidth            = 36,
+        elementHeight           = 36,
+        columnCount             = 12,
+        rowCount                = 8,
+        elementType             = Button,
+    },
+    Confirm                     = {
+        location                = { Anchor("BOTTOMLEFT", 24, 16 ) },
+        text                    = _Locale["Confirm"],
+    },
+    Cancel                      = {
+        location                = { Anchor("LEFT", 8, 0, "Confirm", "RIGHT") },
+        text                    = _Locale["Cancel"],
+    },
+    Next                        = {
+        location                = { Anchor("BOTTOMRIGHT", -24, 16 ) },
+        text                    = _Locale["Next Page"],
+    },
+    Prev                        = {
+        location                = { Anchor("RIGHT", -8, 0, "Next", "LEFT") },
+        text                    = _Locale["Prev Page"],
+    },
+}
+
+function RefreshPlayerSpellIconInfo()
+    if ( MACRO_ICON_FILENAMES ) then
+        return;
+    end
+
+    -- We need to avoid adding duplicate spellIDs from the spellbook tabs for your other specs.
+    local activeIcons = {};
+
+    for i = 1, GetNumSpellTabs() do
+        local tab, tabTex, offset, numSpells, _ = GetSpellTabInfo(i);
+        offset = offset + 1;
+        local tabEnd = offset + numSpells;
+        for j = offset, tabEnd - 1 do
+            --to get spell info by slot, you have to pass in a pet argument
+            local spellType, ID = GetSpellBookItemInfo(j, "player");
+            if (spellType ~= "FUTURESPELL") then
+                local fileID = GetSpellBookItemTexture(j, "player");
+                if (fileID) then
+                    activeIcons[fileID] = true;
+                end
+            end
+            if (spellType == "FLYOUT") then
+                local _, _, numSlots, isKnown = GetFlyoutInfo(ID);
+                if (isKnown and numSlots > 0) then
+                    for k = 1, numSlots do
+                        local spellID, overrideSpellID, isKnown = GetFlyoutSlotInfo(ID, k)
+                        if (isKnown) then
+                            local fileID = GetSpellTexture(spellID);
+                            if (fileID) then
+                                activeIcons[fileID] = true;
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    MACRO_ICON_FILENAMES = { "INV_MISC_QUESTIONMARK" };
+    for fileDataID in pairs(activeIcons) do
+        MACRO_ICON_FILENAMES[#MACRO_ICON_FILENAMES + 1] = fileDataID;
+    end
+
+    GetLooseMacroIcons( MACRO_ICON_FILENAMES );
+    GetLooseMacroItemIcons( MACRO_ICON_FILENAMES );
+    GetMacroIcons( MACRO_ICON_FILENAMES );
+    GetMacroItemIcons( MACRO_ICON_FILENAMES );
+
+    Next()
+end
+
+local onIconClick               = function(self)
+    customIcon.Icon             = self.Icon
+    customIcon:SetTexture(self.Icon)
+end
+
+function LoadIconPage(page)
+    iconPanel.Page              = page
+
+    local max                   = iconPanel.MaxCount
+
+    for i = 1, iconPanel.MaxCount do
+        local icon              = MACRO_ICON_FILENAMES[(page - 1) * max + i]
+        iconPanel.Elements[i].Icon = icon
+        iconPanel.Elements[i]:SetNormalTexture(icon)
+        iconPanel.Elements[i].OnClick = onIconClick
+    end
+
+    if page > 1 then
+        btnPrevPage:Enable()
+    else
+        btnPrevPage:Disable()
+    end
+
+    if page * max >= #MACRO_ICON_FILENAMES then
+        btnNextPage:Disable()
+    else
+        btnNextPage:Enable()
+    end
+end
+
+function confirmCustom:OnClick()
+    if CustomBindGuide.Button then
+        local name              = inputCustomName:GetText()
+        local macro             = inputMacroText:GetText()
+        local icon              = customIcon.Icon
+
+        if name and name ~= "" or macro and macro ~= "" or icon then
+            CustomBindGuide.Button:SetAction(macro and macro ~= "" and "macrotext" or "custom", macro and macro ~= "" and macro or Toolset.fakefunc)
+            CustomBindGuide.Button.CustomText = name and name ~= "" and name or nil
+            CustomBindGuide.Button.CustomTexture = icon
+        end
+    end
+
+    CustomBindGuide.Button      = nil
+    CustomBindGuide:Hide()
+end
+
+function cancelCustom:OnClick()
+    CustomBindGuide.Button      = nil
+    CustomBindGuide:Hide()
+end
+
+function btnNextPage:OnClick()
+    LoadIconPage(iconPanel.Page + 1)
+end
+
+function btnPrevPage:OnClick()
+    LoadIconPage(iconPanel.Page - 1)
+end
+
+function iconPanel:OnMouseWheel(delta)
+    if delta > 0 then
+        if iconPanel.Page > 1 then
+            LoadIconPage(iconPanel.Page - 1)
+        end
+    else
+        if iconPanel.Page * iconPanel.MaxCount < #MACRO_ICON_FILENAMES then
+            LoadIconPage(iconPanel.Page + 1)
+        end
+    end
+end
+
+__Async__()
+function ShowCustomBind(self)
+    -- Init
+    RefreshPlayerSpellIconInfo()
+
+    LoadIconPage(1)
+
+    CustomBindGuide.Button      = self
+
+    customIcon.Icon             = self.CustomTexture
+    customIcon:SetTexture(self.CustomTexture)
+    inputCustomName:SetText(self.CustomText or "")
+    inputMacroText:SetText(self.ActionType == "macrotext" and self.ActionTarget or "")
+
+    CustomBindGuide:Show()
 end

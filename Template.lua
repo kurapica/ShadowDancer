@@ -692,6 +692,21 @@ class "DancerButton" (function(_ENV)
         end
     }
 
+    --- Whether the button is customable
+    property "IsCustomable"     { get = function(self)
+            if self.AutoGenRule and self.AutoGenRule.type then return false end
+            if self.ActionType and self.ActionType ~= "empty" and self.ActionType ~= "custom" and self.ActionType ~= "macrotext" then return false end
+
+            local bar           = self:GetParent()
+            if bar.ActionBarMap ~= ActionBarMap.NONE then return false end
+            if bar.IsFlyoutBar then
+                local root      = bar:GetParent()
+                if root.AutoGenRule and root.AutoGenRule.type then return false end
+            end
+            return true
+        end
+    }
+
     ------------------------------------------------------
     -- Method
     ------------------------------------------------------
@@ -700,7 +715,13 @@ class "DancerButton" (function(_ENV)
             local parent        = self:GetParent()
 
             if parent.ActionBarMap == ActionBarMap.NONE then
-                self:SetAction(config.ActionType, config.ActionTarget, config.ActionDetail)
+                if config.CustomType then
+                    self:SetAction(config.CustomType, config.MacroText or Toolset.fakefunc)
+                    self.CustomText     = config.CustomText
+                    self.CustomTexture  = config.CustomTexture
+                else
+                    self:SetAction(config.ActionType, config.ActionTarget, config.ActionDetail)
+                end
             end
 
             -- Fix for the first version
@@ -728,13 +749,19 @@ class "DancerButton" (function(_ENV)
     end
 
     function GetProfile(self, nocontent)
-        local needAction        = not nocontent and self:GetParent().ActionBarMap == ActionBarMap.NONE and not (self.AutoGenRule and self.AutoGenRule.type)
+        local isCustom          = self.ActionType == "custom" or self.ActionType == "macrotext"
+        local needAction        = not nocontent and not isCustom and self:GetParent().ActionBarMap == ActionBarMap.NONE and not (self.AutoGenRule and self.AutoGenRule.type)
 
         return {
             -- Action Info
             ActionType          = needAction and self.ActionType or nil,
             ActionTarget        = needAction and self.ActionTarget or nil,
             ActionDetail        = needAction and self.ActionDetail or nil,
+
+            CustomType          = isCustom and self.ActionType or nil,
+            CustomText          = isCustom and self.CustomText or nil,
+            CustomTexture       = isCustom and self.CustomTexture or nil,
+            MacroText           = self.ActionType == "macrotext" and self.ActionTarget or nil,
 
             FlyoutDirection     = self.FlyoutDirection,
             AlwaysFlyout        = self.AlwaysFlyout,
@@ -949,10 +976,17 @@ class "DancerButton" (function(_ENV)
                     elseif not self:GetAttribute("alwaysFlyout") then
                         -- Toggle the flyout if the action type is empty
                         local atype = self:GetAttribute("actiontype")
-                        if not atype or atype == "" or atype == "empty" then
+                        if not atype or atype == "" or atype == "empty" or atype == "custom" then
                             if FLYOUT_MAP[self]:IsVisible() then
                                 Manager:RunFor(self, HIDE_FLYOUT_BARS)
                             else
+                                -- Hide brother's flyout bar
+                                for brother in pairs(BAR_MAP[BAR_MAP[self]]) do
+                                    if brother ~= self and FLYOUT_MAP[brother] and FLYOUT_MAP[brother]:IsVisible() and not brother:GetAttribute("alwaysFlyout") then
+                                        Manager:RunFor(brother, HIDE_FLYOUT_BARS)
+                                    end
+                                end
+
                                 FLYOUT_MAP[self]:Show()
                             end
 
