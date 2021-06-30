@@ -711,6 +711,8 @@ class "DancerButton" (function(_ENV)
     -- Method
     ------------------------------------------------------
     function SetProfile(self, config)
+        self.AutoGenRule        = nil   -- Make sure change or clear action won't cause item added to the black list
+
         if config then
             local parent        = self:GetParent()
 
