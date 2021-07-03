@@ -172,6 +172,11 @@ end
 
 function RECYCLE_MASKS:OnPush(mask)
     mask:SetParent(HIDDEN_FRAME)
+    mask:Hide()
+end
+
+function RECYCLE_MASKS:OnPop(mask)
+    mask:Show()
 end
 
 -----------------------------------------------------------
