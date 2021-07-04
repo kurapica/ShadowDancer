@@ -978,6 +978,15 @@ class "DancerButton" (function(_ENV)
                     elseif not self:GetAttribute("alwaysFlyout") then
                         -- Toggle the flyout if the action type is empty
                         local atype = self:GetAttribute("actiontype")
+
+                        if atype == "action" then
+                            -- Check empty action
+                            local page  = self:GetAttribute("actionpage") or 1
+                            if not GetActionInfo( self:GetID() + (page - 1) * 12 ) then
+                                atype = "empty"
+                            end
+                        end
+
                         if not atype or atype == "" or atype == "empty" or atype == "custom" then
                             if FLYOUT_MAP[self]:IsVisible() then
                                 Manager:RunFor(self, HIDE_FLYOUT_BARS)
