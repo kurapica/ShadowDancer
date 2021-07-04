@@ -987,7 +987,7 @@ class "DancerButton" (function(_ENV)
                             end
                         end
 
-                        if not atype or atype == "" or atype == "empty" or atype == "custom" then
+                        if not atype or atype == "" or atype == "empty" or atype == "custom" or atype == "flyout" then
                             if FLYOUT_MAP[self]:IsVisible() then
                                 Manager:RunFor(self, HIDE_FLYOUT_BARS)
                             else
