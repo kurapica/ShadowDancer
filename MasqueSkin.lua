@@ -156,6 +156,11 @@ function UpdateMasqueSkin()
             setAllPoints        = masqueSkin.Cooldown.SetAllPoints and true or nil,
             location            = GetLocation(masqueSkin.Cooldown),
         }
+
+        local chargeSkin        = Toolset.clone(skin.Cooldown)
+        chargeSkin.cooldown     = Wow.FromUIProperty("ChargeCooldown")
+
+        skin.ChargeCooldown     = Wow.FromUIProperty("IsChargable"):Map(function(val) return val and chargeSkin or nil end)
     end
 
     if masqueSkin.Shape == "Square" then
