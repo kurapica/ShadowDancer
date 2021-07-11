@@ -212,6 +212,8 @@ function UnlockBars()
         bar.Mask:SetParent(bar)
         bar.Mask:Show()
     end
+
+    FireSystemEvent("SHADOWDANCER_UNLOCK")
 end
 
 __SlashCmd__ ("/shd",          "lock", _Locale["Lock the action bars"])
@@ -242,6 +244,8 @@ function LockBars()
         RECYCLE_MASKS(bar.Mask)
         bar.Mask                = nil
     end
+
+    FireSystemEvent("SHADOWDANCER_LOCK")
 end
 
 __SlashCmd__ ("/shd",          "bind", _Locale["Start binding key"])

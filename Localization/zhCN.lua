@@ -91,3 +91,5 @@ L["Confirm"]                    = "确定"
 L["All"]                        = "全部"
 L["NONE"]                       = "无自动生成"
 L["Auto Gen Binding"]           = "自动生成设定"
+
+L["Show Style Border"]			= "显示特殊边框"
