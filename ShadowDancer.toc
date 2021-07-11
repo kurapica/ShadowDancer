@@ -1,7 +1,7 @@
 ## Interface: 90100
 ## Title: ShadowDancer
 ## Author: kurapica125@outlook.com
-## Version: r012
+## Version: r013
 ## Notes: A flexible action bar mod
 ## Dependencies: Scorpio.Widget, Scorpio.Action
 ## OptionalDeps: Masque
@@ -17,7 +17,7 @@ localization\zhCN.lua
 # Core
 Template.lua
 ShadowDancer.lua
-ExtraActionBar.lua
+ExtraActionButton.lua
 
 # Skin
 MasqueSkin.lua
