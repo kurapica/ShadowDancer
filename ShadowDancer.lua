@@ -759,6 +759,8 @@ if Scorpio.IsRetail then
                 MainMenuBar:SetPoint("RIGHT", UIParent, "LEFT", -1000, 0)
 
                 MicroButtonAndBagsBar:SetParent(HIDDEN_FRAME)
+
+                PetActionBarFrame:UnregisterAllEvents()
             end
         else
             if MicroButtonAndBagsBar:GetParent() == HIDDEN_FRAME then
@@ -769,6 +771,22 @@ if Scorpio.IsRetail then
                 MainMenuBar:SetMovable(false)
 
                 MicroButtonAndBagsBar:SetParent(MainMenuBar)
+
+                PetActionBarFrame:RegisterEvent("PLAYER_CONTROL_LOST")
+                PetActionBarFrame:RegisterEvent("PLAYER_CONTROL_GAINED")
+                PetActionBarFrame:RegisterEvent("PLAYER_FARSIGHT_FOCUS_CHANGED")
+                PetActionBarFrame:RegisterEvent("UNIT_PET")
+                PetActionBarFrame:RegisterEvent("UNIT_FLAGS")
+                PetActionBarFrame:RegisterEvent("PET_BAR_UPDATE")
+                PetActionBarFrame:RegisterEvent("PET_BAR_UPDATE_COOLDOWN")
+                PetActionBarFrame:RegisterEvent("PET_BAR_SHOWGRID")
+                PetActionBarFrame:RegisterEvent("PET_BAR_HIDEGRID")
+                PetActionBarFrame:RegisterEvent("PET_BAR_UPDATE_USABLE")
+                PetActionBarFrame:RegisterEvent("PET_UI_UPDATE")
+                PetActionBarFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+                PetActionBarFrame:RegisterEvent("UPDATE_VEHICLE_ACTIONBAR")
+                PetActionBarFrame:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
+                PetActionBarFrame:RegisterUnitEvent("UNIT_AURA", "pet")
             end
         end
     end
