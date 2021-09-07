@@ -1,7 +1,10 @@
 ## Interface: 90100
+## Interface-Retail: 90100
+## Interface-Classic: 11307
+## Interface-BCC: 20502
 ## Title: ShadowDancer
 ## Author: kurapica125@outlook.com
-## Version: r016
+## Version: @project-version@
 ## Notes: A flexible action bar mod
 ## Dependencies: Scorpio
 ## OptionalDeps: Masque
@@ -9,6 +12,8 @@
 ## LoadOnDemand: 0
 ## SavedVariables: ShadowDancer_DB
 ## SavedVariablesPerCharacter: ShadowDancer_CharDB
+## X-Curse-Project-ID: 494640
+## X-Wago-ID: 0mNwnzGo
 
 # Localization
 localization\enUS.lua

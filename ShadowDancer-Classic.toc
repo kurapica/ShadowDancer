@@ -1,7 +1,7 @@
 ## Interface: 11307
 ## Title: ShadowDancer
 ## Author: kurapica125@outlook.com
-## Version: r016
+## Version: @project-version@
 ## Notes: A flexible action bar mod
 ## Dependencies: Scorpio
 ## OptionalDeps: Masque

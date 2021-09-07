@@ -1,6 +1,6 @@
 This is a flexible  and powerful action bar mod inspired by FlexBar, I always want create an unlimit flyout bar system, and now here it is.
 
-This mod require [Scorpio](https://www.curseforge.com/wow/addons/scorpio "Scorpio") and [PLoop](https://www.curseforge.com/wow/addons/ploop"PLoop") Lib to work.
+This mod require [Scorpio](https://github.com/kurapica/Scorpio "Scorpio") Lib to work.
 
 Commands:
 =========
