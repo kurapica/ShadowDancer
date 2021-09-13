@@ -1,1 +1,4 @@
 manual-changelog: changelog.txt
+
+ignore:
+  - img
