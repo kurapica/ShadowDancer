@@ -164,9 +164,9 @@ function UpdateMasqueSkin()
     end
 
     if masqueSkin.Shape == "Square" then
-        Style.ActiveSkin("Default", SpellActivationAlert)
+        Style.ActiveSkin("Default", DancerButtonAlert)
     else
-        Style.ActiveSkin("ShadowDancerMasqueSkin", SpellActivationAlert)
+        Style.ActiveSkin("ShadowDancerMasqueSkin", DancerButtonAlert)
     end
 
     Style.UpdateSkin("ShadowDancerMasqueSkin", { [DancerButton] = skin })
@@ -271,7 +271,7 @@ Style.RegisterSkin("ShadowDancerMasqueSkin", {
         FlyoutBorder    = NIL,
         FlyoutBorderShadow = NIL,
     },
-    [SpellActivationAlert] = {
+    [DancerButtonAlert] = {
         inherit         = "default",
 
         Spark           = {

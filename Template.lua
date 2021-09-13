@@ -2,14 +2,16 @@
 --                ShadowDancer Template                   --
 --                                                        --
 -- Author      :  kurapica125@outlook.com                 --
--- Create Date :  2021/06/02                              --
+-- Create Date :  2021/09/13                              --
 --========================================================--
 
 --========================================================--
-Scorpio           "ShadowDancer.Template"            "1.0.0"
+Scorpio           "ShadowDancer.Template"            "1.1.0"
 --========================================================--
 
 namespace "ShadowDancer"
+
+import "Scorpio.Secure.SecureActionButton"
 
 __Sealed__()
 enum "ActionBarMap"             {
@@ -1432,3 +1434,40 @@ class "ShadowBar" (function(_ENV)
         self.OnHide             = self.OnHide + onHide
     end
 end)
+
+do
+    __Sealed__()
+    class "DancerButtonAlert" { SpellActivationAlert }
+
+    --- SpellActivationAlert
+    UI.Property                     {
+        name                        = "SpellActivationAlert",
+        require                     = DancerButton,
+        type                        = Boolean,
+        default                     = false,
+        set                         = function(self, value)
+            local alert             = self.__SpellActivationAlert
+            if value then
+                if not alert then
+                    alert           = SpellActivationAlert.Pool[DancerButtonAlert]()
+                    local w, h      = self:GetSize()
+
+                    alert:SetParent(self)
+                    alert:ClearAllPoints()
+                    alert:SetPoint("CENTER")
+                    alert:SetSize(w * 1.4, h * 1.4)
+                    self.__SpellActivationAlert = alert
+                end
+
+                alert.AnimationState= "IN"
+            else
+                if alert then
+                    alert.AnimationState = "OUT"
+                    self.__SpellActivationAlert = nil
+                end
+            end
+        end,
+    }
+
+    Style.UpdateSkin("Default",     { [DancerButtonAlert] = {} })
+end
