@@ -1319,7 +1319,7 @@ class "ShadowBar" (function(_ENV)
             self:SetClampedToScreen(true)
 
             self.ActionBarMap       = config.Style.actionBarMap
-            self.AutoHideCondition  = config.Style.autoHideCondition
+            self.AutoHideCondition  = config.Style.autoHideCondition or nil
             self.AutoFadeOut        = config.Style.autoFadeOut
             self.FadeAlpha          = config.Style.fadeAlpha
             self.GridAlwaysShow     = config.Style.gridAlwaysShow
@@ -1359,7 +1359,7 @@ class "ShadowBar" (function(_ENV)
                 location        = self:GetLocation(),
                 scale           = self:GetScale(),
                 actionBarMap    = self.ActionBarMap,
-                autoHideCondition = self.AutoHideCondition and #self.AutoHideCondition > 0 and Toolset.clone(self.AutoHideCondition),
+                autoHideCondition = self.AutoHideCondition and #self.AutoHideCondition > 0 and Toolset.clone(self.AutoHideCondition) or nil,
                 autoFadeOut     = not self.IsFlyoutBar and self.AutoFadeOut or false,
                 fadeAlpha       = not self.IsFlyoutBar and self.FadeAlpha or 0,
                 gridAlwaysShow  = self.GridAlwaysShow,
