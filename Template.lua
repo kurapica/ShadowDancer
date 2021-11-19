@@ -326,6 +326,9 @@ do
     __Service__(true)
     function AutoScanItems()
         local cache             = {}
+
+        Wait(2, "PLAYER_LOGIN") -- wait for the container data
+
         while true do
             NoCombat()
 
