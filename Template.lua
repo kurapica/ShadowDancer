@@ -592,7 +592,7 @@ class "DancerButton" (function(_ENV)
     end
 
     local function onMouseDown(self, button)
-        return button == "LeftButton" and IsControlKeyDown() and not InCombatLockdown() and Next(regenerateFlyout, self)
+        return button == "LeftButton" and self:IsMouseOver() and IsControlKeyDown() and not InCombatLockdown() and Next(regenerateFlyout, self)
     end
 
     local function onEnter(self)
