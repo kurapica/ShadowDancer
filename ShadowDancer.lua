@@ -179,6 +179,40 @@ function RECYCLE_MASKS:OnPop(mask)
     mask:Show()
 end
 
+__Service__(true)
+function AutoHideShowService()
+    while true do
+        local event             = Wait("ACTIONBAR_SHOWGRID", "SCORPIO_ACTION_BUTTON_KEY_BINDING_START")
+
+        if not InCombatLockdown() then
+            -- disable auto hide when key binding or place actions
+            for i, bar in GLOBAL_BARS:GetIterator() do
+                bar.AutoHideCondition = nil
+            end
+
+            for i, bar in CURRENT_BARS:GetIterator() do
+                bar.AutoHideCondition = nil
+            end
+
+            NextEvent(event == "ACTIONBAR_SHOWGRID" and "ACTIONBAR_HIDEGRID" or "SCORPIO_ACTION_BUTTON_KEY_BINDING_STOP")
+            NoCombat()
+
+
+            -- enable auto hide
+            for i, bar in GLOBAL_BARS:GetIterator() do
+                bar.AutoHideCondition = _SVDB.ActionBars[i].Style.autoHideCondition or nil
+            end
+
+            local charSV        = CharSV()
+
+            for i, bar in CURRENT_BARS:GetIterator() do
+                bar.AutoHideCondition = charSV.ActionBars[i].Style.autoHideCondition or nil
+            end
+        end
+    end
+end
+
+
 -----------------------------------------------------------
 -- Slash Commands
 -----------------------------------------------------------

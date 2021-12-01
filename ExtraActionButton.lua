@@ -67,15 +67,30 @@ end
 
 __SystemEvent__()
 function SHADOWDANCER_UNLOCK()
+    ExtraActionButton:SetAutoHide(nil)
+    ExtraActionButton:Show()
     ExtraActionButtonMask:Show()
     ExtraActionButton:SetMovable(true)
 end
 
 __SystemEvent__()
 function SHADOWDANCER_LOCK()
+    ExtraActionButton:SetAutoHide("[noextrabar]")
     ExtraActionButtonMask:Hide()
     NoCombat(function() ExtraActionButton:SetMovable(false) end)
 end
+
+__SystemEvent__()
+function SCORPIO_ACTION_BUTTON_KEY_BINDING_START()
+    ExtraActionButton:SetAutoHide(nil)
+    ExtraActionButton:Show()
+end
+
+__SystemEvent__()
+function SCORPIO_ACTION_BUTTON_KEY_BINDING_STOP()
+    ExtraActionButton:SetAutoHide("[noextrabar]")
+end
+
 
 function OpenMaskMenu(self, button)
     if button ~= "RightButton" then return end
