@@ -584,6 +584,13 @@ function OpenMaskMenu(self, button)
                     text                = _Locale["Auto Hide"],
                     submenu             = GetAutoHideMenu(bar),
                 },
+                {
+                    text                = _Locale["Disable Auto Flyout"],
+                    check               = {
+                        get             = function() return bar.NoAutoFlyout end,
+                        set             = function(val) bar.NoAutoFlyout = val end,
+                    }
+                },
             },
         },
         {

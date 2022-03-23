@@ -933,7 +933,7 @@ class "DancerButton" (function(_ENV)
     ------------------------------------------------------
     function __ctor(self)
         _ManagerFrame:WrapScript(self, "OnEnter", [=[
-                if BAR_MAP[self] and FLYOUT_MAP[self] and not FLYOUT_MAP[self]:IsVisible() then
+                if BAR_MAP[self] and FLYOUT_MAP[self] and not FLYOUT_MAP[self]:IsVisible() and not BAR_MAP[self]:GetAttribute("noAutoFlyout") then
                     FLYOUT_MAP[self]:Show()
                     if self:GetAttribute("alwaysFlyout") then return end
 
@@ -1188,10 +1188,10 @@ class "ShadowBar" (function(_ENV)
             local button        = Manager:GetFrameRef("DancerButton")
 
             if not BAR_MAP[bar] then
-                BAR_MAP[bar]= newtable()
+                BAR_MAP[bar]    = newtable()
             end
 
-            BAR_MAP[bar][button] = true
+            BAR_MAP[bar][button]= true
             BAR_MAP[button]     = bar
         ]]
 
@@ -1282,6 +1282,13 @@ class "ShadowBar" (function(_ENV)
         end
     }
 
+    --- Whether disable the auto flyout
+    property "NoAutoFlyout"     {
+        type                    = Boolean,
+        set                     = function(self, value) self:SetAttribute("noAutoFlyout", value or false) end,
+        get                     = function(self) return self:GetAttribute("noAutoFlyout") or false end,
+    }
+
     ------------------------------------------------------
     -- Static Property
     ------------------------------------------------------
@@ -1326,6 +1333,7 @@ class "ShadowBar" (function(_ENV)
             self.AutoFadeOut        = config.Style.autoFadeOut
             self.FadeAlpha          = config.Style.fadeAlpha
             self.GridAlwaysShow     = config.Style.gridAlwaysShow
+            self.NoAutoFlyout       = config.Style.noAutoFlyout or false
 
             self.AutoPosition       = false
             self.KeepMaxSize        = true
@@ -1351,6 +1359,7 @@ class "ShadowBar" (function(_ENV)
             self.ActionBarMap       = ActionBarMap.NONE
             self.AutoHideCondition  = nil
             self.AutoFadeOut        = false
+            self.NoAutoFlyout       = false
             self.FadeAlpha          = 0
             self.Count              = 0
         end
@@ -1366,6 +1375,7 @@ class "ShadowBar" (function(_ENV)
                 autoFadeOut     = not self.IsFlyoutBar and self.AutoFadeOut or false,
                 fadeAlpha       = not self.IsFlyoutBar and self.FadeAlpha or 0,
                 gridAlwaysShow  = self.GridAlwaysShow,
+                noAutoFlyout    = self.NoAutoFlyout or nil,
 
                 rowCount        = self.RowCount,
                 columnCount     = self.ColumnCount,

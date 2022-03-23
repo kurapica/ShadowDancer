@@ -93,3 +93,4 @@ L["NONE"]                       = "无自动生成"
 L["Auto Gen Binding"]           = "自动生成设定"
 
 L["Show Style Border"]			= "显示特殊边框"
+L["Disable Auto Flyout"]		= "禁用鼠标划过自动弹出"
