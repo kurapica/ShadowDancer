@@ -38,6 +38,13 @@ enum "AutoGenRuleType"          {
 }
 
 __Sealed__()
+enum "SwapMode"                 {
+    None                        = 0,
+    ToRoot                      = 1,
+    Queue                       = 2,
+}
+
+__Sealed__()
 struct "AutoGenRule"  {
     { name = "type",       type = AutoGenRuleType, require = true },
     { name = "class",      type = Number },
@@ -88,7 +95,7 @@ do
             local buttons       = BAR_MAP[bar]
             if not buttons then return end
 
-            for btn in pairs(buttons) do
+            for _, btn in ipairs(buttons) do
                 if FLYOUT_MAP[btn] and FLYOUT_MAP[btn]:IsVisible() then
                     Manager:RunFor(btn, CALC_EFFECT_BAR)
                 end
@@ -104,7 +111,7 @@ do
             local buttons       = BAR_MAP[bar]
 
             if buttons then
-                for btn in pairs(buttons) do
+                for _, btn in ipairs(buttons) do
                     if FLYOUT_MAP[btn] and FLYOUT_MAP[btn]:IsVisible() then
                         Manager:RunFor(btn, HIDE_FLYOUT_BARS)
                     end
@@ -213,6 +220,15 @@ do
     __SecureMethod__()
     function _ManagerFrame:StartAutoFadeOut(name)
         AddAutoFadeWatch(GetProxyUI(_G[name]))
+    end
+
+    __SecureMethod__()
+    function _ManagerFrame:SwapCustomAction(a, b)
+        a = GetProxyUI(_G[a])
+        b = GetProxyUI(_G[b])
+
+        a.CustomText,    b.CustomText    = b.CustomText,    a.CustomText
+        a.CustomTexture, b.CustomTexture = b.CustomTexture, a.CustomTexture
     end
 
     __Service__(true)
@@ -661,6 +677,8 @@ class "DancerButton" (function(_ENV)
     --- The autogen rules
     property "AutoGenRule"      { type = AutoGenRule, handler = function(self, rule)
             if rule then
+                if rule.type and self.FlyoutBar then self.FlyoutBar.IsSwappable = nil end
+
                 if rule.type == AutoGenRuleType.RaidTarget then
                     self:RefreshAutoGen({ [0] = 0, 1, 2, 3, 4, 5, 6, 7, 8 }, "raidtarget")
                 elseif rule.type == AutoGenRuleType.WorldMarker then
@@ -704,6 +722,22 @@ class "DancerButton" (function(_ENV)
 
             local bar           = self:GetParent()
             if bar.ActionBarMap ~= ActionBarMap.NONE then return false end
+            if bar.IsFlyoutBar then
+                local root      = bar:GetParent()
+                if root.AutoGenRule and root.AutoGenRule.type then return false end
+            end
+            return true
+        end
+    }
+
+    --- Whether the button is swap able
+    property "IsSwappable"      { get = function(self)
+            if not self.FlyoutBar then return false end
+            if self.AutoGenRule and self.AutoGenRule.type then return false end
+
+            local bar           = self:GetParent()
+            if bar.ActionBarMap ~= ActionBarMap.NONE then return false end
+
             if bar.IsFlyoutBar then
                 local root      = bar:GetParent()
                 if root.AutoGenRule and root.AutoGenRule.type then return false end
@@ -997,7 +1031,7 @@ class "DancerButton" (function(_ENV)
                                 Manager:RunFor(self, HIDE_FLYOUT_BARS)
                             else
                                 -- Hide brother's flyout bar
-                                for brother in pairs(BAR_MAP[BAR_MAP[self]]) do
+                                for _, brother in ipairs(BAR_MAP[BAR_MAP[self]]) do
                                     if brother ~= self and FLYOUT_MAP[brother] and FLYOUT_MAP[brother]:IsVisible() and not brother:GetAttribute("alwaysFlyout") then
                                         Manager:RunFor(brother, HIDE_FLYOUT_BARS)
                                     end
@@ -1011,12 +1045,94 @@ class "DancerButton" (function(_ENV)
                     end
                 end
 
+                -- Check swap mode
+                local swapBar = FLYOUT_MAP[self]
+                local swapMode
+
+                if swapBar then
+                    swapMode = swapBar:GetAttribute("swapMode")
+                    if swapMode ~= 1 and swapMode ~= 2 then
+                        swapBar = nil
+                    end
+                end
+
+                if not swapBar then
+                    swapBar = BAR_MAP[self]
+                    swapMode = swapBar:GetAttribute("swapMode")
+                    if swapMode ~= 1 and swapMode ~= 2 then
+                        swapBar = nil
+                    end
+                end
+
+                if swapBar and (swapMode == 1 and FLYOUT_MAP[swapBar] ~= self) or swapMode == 2 then
+                    TOGGLE_ROOT_BUTTON[2] = swapBar
+                    TOGGLE_ROOT_BUTTON[3] = swapMode
+                    TOGGLE_ROOT_BUTTON[4] = self
+                else
+                    TOGGLE_ROOT_BUTTON[2] = nil
+                    TOGGLE_ROOT_BUTTON[3] = nil
+                    TOGGLE_ROOT_BUTTON[4] = nil
+                end
+
+                -- Check
                 while BAR_MAP[self]:GetAttribute("isFlyoutBar") do self = FLYOUT_MAP[BAR_MAP[self]] end
                 TOGGLE_ROOT_BUTTON[1] = FLYOUT_MAP[self] and self or nil
 
                 -- return messge if need to do a flyout auto hide
-                return button, TOGGLE_ROOT_BUTTON[1] and "toggle" or nil
+                return button, (TOGGLE_ROOT_BUTTON[2] or TOGGLE_ROOT_BUTTON[1]) and "toggle" or nil
             ]=], [=[
+                local swapBar = TOGGLE_ROOT_BUTTON[2]
+                if swapBar then
+                    local swapMode = TOGGLE_ROOT_BUTTON[3]
+                    local btn = TOGGLE_ROOT_BUTTON[4]
+
+                    if swapMode == 1 then
+                        -- To root
+                        local root = FLYOUT_MAP[swapBar]
+                        if root ~= btn then
+                            local rtype, raction, rdetail = root:RunAttribute("GetAction")
+                            local btype, baction, bdetail = btn:RunAttribute("GetAction")
+
+                            root:RunAttribute("SetAction", btype, baction, bdetail)
+                            btn:RunAttribute("SetAction", rtype, raction, rdetail)
+
+                            Manager:CallMethod("SwapCustomAction", root:GetName(), btn:GetName())
+                        end
+                    elseif swapMode == 2 then
+                        -- Queue
+                        local buttons = BAR_MAP[swapBar]
+                        if buttons then
+                            local index = 0
+                            if btn ~= FLYOUT_MAP[swapBar] then
+                                for i = 1, #buttons do
+                                    if buttons[i] == btn then
+                                        index = i
+                                        break
+                                    end
+                                end
+                            end
+
+                            for i = index + 1, #buttons do
+                                local nxt = buttons[i]
+
+                                local btype, baction, bdetail = btn:RunAttribute("GetAction")
+                                local ntype, naction, ndetail = nxt:RunAttribute("GetAction")
+
+                                nxt:RunAttribute("SetAction", btype, baction, bdetail)
+                                btn:RunAttribute("SetAction", ntype, naction, ndetail)
+
+                                Manager:CallMethod("SwapCustomAction", nxt:GetName(), btn:GetName())
+
+                                btn = nxt
+                            end
+                        end
+                    end
+
+                    TOGGLE_ROOT_BUTTON[2] = nil
+                    TOGGLE_ROOT_BUTTON[3] = nil
+                    TOGGLE_ROOT_BUTTON[4] = nil
+                end
+
                 if TOGGLE_ROOT_BUTTON[1] then
                     Manager:RunFor(TOGGLE_ROOT_BUTTON[1], HIDE_FLYOUT_BARS)
                     TOGGLE_ROOT_BUTTON[1] = nil
@@ -1148,7 +1264,7 @@ class "ShadowBar" (function(_ENV)
 
                             local btns  = BAR_MAP[bar]
                             if btns then
-                                for btn in pairs(btns) do
+                                for _, btn in ipairs(btns) do
                                     if FLYOUT_MAP[btn] then
                                         Manager:RunFor(btn, HIDE_FLYOUT_BARS)
                                     end
@@ -1191,7 +1307,7 @@ class "ShadowBar" (function(_ENV)
                 BAR_MAP[bar]    = newtable()
             end
 
-            BAR_MAP[bar][button]= true
+            tinsert(BAR_MAP[bar], button)
             BAR_MAP[button]     = bar
         ]]
 
@@ -1207,9 +1323,15 @@ class "ShadowBar" (function(_ENV)
         _ManagerFrame:Execute[[
             local bar           = Manager:GetFrameRef("ShadowBar")
             local button        = Manager:GetFrameRef("DancerButton")
+            local map           = BAR_MAP[bar]
 
-            if BAR_MAP[bar] then
-                BAR_MAP[bar][button] = nil
+            if map then
+                for i = #map, 1, -1 do
+                    if map[i] == button then
+                        tremove(map, i)
+                        break
+                    end
+                end
             end
             BAR_MAP[button]     = nil
         ]]
@@ -1255,6 +1377,10 @@ class "ShadowBar" (function(_ENV)
                 setupActionMap(ele, map)
             end
 
+            if map and map ~= ActionBarMap.NONE then
+                self.SwapMode   = nil
+            end
+
             if stanceBar[self] then
                 Next(RefreshStance, self)
             end
@@ -1287,6 +1413,13 @@ class "ShadowBar" (function(_ENV)
         type                    = Boolean,
         set                     = function(self, value) self:SetAttribute("noAutoFlyout", value or false) end,
         get                     = function(self) return self:GetAttribute("noAutoFlyout") or false end,
+    }
+
+    --- The swap mode of the button
+    property "SwapMode"         {
+        type                    = SwapMode,
+        set                     = function(self, value) self:SetAttribute("swapMode", value) end,
+        get                     = function(self) return self:GetAttribute("swapMode") or SwapMode.None end,
     }
 
     ------------------------------------------------------
@@ -1334,6 +1467,7 @@ class "ShadowBar" (function(_ENV)
             self.FadeAlpha          = config.Style.fadeAlpha
             self.GridAlwaysShow     = config.Style.gridAlwaysShow
             self.NoAutoFlyout       = config.Style.noAutoFlyout or false
+            self.SwapMode           = config.Style.swapMode
 
             self.AutoPosition       = false
             self.KeepMaxSize        = true
@@ -1360,6 +1494,7 @@ class "ShadowBar" (function(_ENV)
             self.AutoHideCondition  = nil
             self.AutoFadeOut        = false
             self.NoAutoFlyout       = false
+            self.SwapMode           = nil
             self.FadeAlpha          = 0
             self.Count              = 0
         end
@@ -1374,6 +1509,7 @@ class "ShadowBar" (function(_ENV)
                 autoHideCondition = self.AutoHideCondition and #self.AutoHideCondition > 0 and Toolset.clone(self.AutoHideCondition) or nil,
                 autoFadeOut     = not self.IsFlyoutBar and self.AutoFadeOut or false,
                 fadeAlpha       = not self.IsFlyoutBar and self.FadeAlpha or 0,
+                swapMode        = self.IsFlyoutBar and self.SwapMode or nil,
                 gridAlwaysShow  = self.GridAlwaysShow,
                 noAutoFlyout    = self.NoAutoFlyout or nil,
 

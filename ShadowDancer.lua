@@ -366,6 +366,44 @@ function BindCustomAction()
     end
 end
 
+__SlashCmd__ ("/shd",          "swap", _Locale["Change the swap mode of the flyout bar"])
+__SlashCmd__ ("/shadow",       "swap", _Locale["Change the swap mode of the flyout bar"])
+__SlashCmd__ ("/shadowdancer", "swap", _Locale["Change the swap mode of the flyout bar"])
+__Async__(true)
+function SwapBarMode()
+    LockBars()
+
+    local current
+    local mask              = RECYCLE_MASKS()
+    mask.InSwapBarMode      = true
+
+    while not InCombatLockdown() and mask.InSwapBarMode do
+        local button        = GetMouseFocus()
+
+        if button then
+            button          = GetProxyUI(button)
+
+            if Class.IsObjectType(button, DancerButton) and button.IsSwappable then
+                mask:SetParent(button)
+                mask:Show()
+
+                while button:IsMouseOver() and mask.InSwapBarMode do
+                    Next()
+                end
+
+                mask:Hide()
+            end
+        end
+
+        Next()
+    end
+
+    if mask.InSwapBarMode then
+        mask.InSwapBarMode = nil
+        RECYCLE_MASKS(mask)
+    end
+end
+
 -----------------------------------------------------------
 -- Helpers
 -----------------------------------------------------------
@@ -403,6 +441,31 @@ function OpenMaskMenu(self, button)
         end
 
         return RECYCLE_MASKS(self)
+    elseif self.InSwapBarMode then
+        self.InSwapBarMode      = nil
+
+        local bar               = self:GetParent().FlyoutBar
+        if not bar then return end
+
+        return ShowDropDownMenu {
+            check               = {
+                get             = function() return bar.SwapMode end,
+                set             = function(value) bar.SwapMode = value end,
+            },
+
+            {
+                text            = _Locale["No action swap"],
+                checkvalue      = SwapMode.None,
+            },
+            {
+                text            = _Locale["Swap the action to root button"],
+                checkvalue      = SwapMode.ToRoot,
+            },
+            {
+                text            = _Locale["Use the bar as the action queue"],
+                checkvalue      = SwapMode.Queue
+            },
+        }
     end
 
     local bar                   = self:GetParent()
@@ -423,6 +486,10 @@ function OpenMaskMenu(self, button)
                 LockBars()
                 return SecureActionButton.StartKeyBinding()
             end
+        },
+        {
+            text                = _Locale["Start Swap Mode Binding"],
+            click               = SwapBarMode,
         },
         {
             text                = _Locale["Button Operation"],
@@ -522,7 +589,7 @@ function OpenMaskMenu(self, button)
                         local value     = PickRange(_Locale["Choose the column count"], 1, 12, 1, bar.ColumnCount)
                         if value then
                             bar.ColumnCount = value
-                            bar.RowCount    = math.max(bar.RowCount, math.floor(12 / value))
+                            bar.RowCount    = math.min(bar.RowCount, math.floor(12 / value))
                             bar.Count       = math.min(12, bar.ColumnCount * bar.RowCount)
                         end
                     end
@@ -534,6 +601,7 @@ function OpenMaskMenu(self, button)
                         local value     = PickRange(_Locale["Choose the row count"], 1, math.floor(12 / bar.ColumnCount), 1, bar.RowCount)
                         if value then
                             bar.RowCount= value
+                            bar.ColumnCount = math.min(bar.ColumnCount, math.floor(12 / value))
                             bar.Count   = math.min(12, bar.ColumnCount * bar.RowCount)
                         end
                     end
@@ -1345,6 +1413,12 @@ function LoadIconPage(page)
 
     for i = 1, iconPanel.MaxCount do
         local icon              = MACRO_ICON_FILENAMES[(page - 1) * max + i]
+
+        icon                    = tonumber(icon) or icon
+        if type(icon) ~= "number" then
+            icon                = "INTERFACE\\ICONS\\"..icon
+        end
+
         iconPanel.Elements[i].Icon = icon
         iconPanel.Elements[i]:SetNormalTexture(icon)
         iconPanel.Elements[i].OnClick = onIconClick
