@@ -90,16 +90,3 @@ so with a well-deisgned layout, you can quickly switch the key-set groups like
 ![custom](./img/custom.gif "custom")
 
 You also can bind a macro text to that button, but it'll block to toggle the flyout bar, since it's not empty.
-
-
-15. You can binding a swap mode to a root button with flyout bar, so the action can be swapped through the buttons.
-
-![swap](./img/swapBind.gif "swap mode")
-
-With the mode **Swap the action to root button**
-
-![toroot](./img/swapToRoot.gif "swap to root")
-
-With the mode **Use the bar as the action queue**
-
-![castqueue](./img/swapQueue.gif "cast queue")
