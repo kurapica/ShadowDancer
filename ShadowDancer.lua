@@ -570,11 +570,25 @@ function OpenMaskMenu(self, button)
                         get             = function() return GLOBAL_BARS:Contains(bar) end,
                         set             = function(value)
                             if value then
-                                if not GLOBAL_BARS:Contains(bar)  then GLOBAL_BARS:Insert(bar) end
-                                if CURRENT_BARS:Contains(bar)     then CURRENT_BARS:Remove(bar) end
-                            else
-                                if GLOBAL_BARS:Contains(bar)      then GLOBAL_BARS:Remove(bar) end
-                                if not CURRENT_BARS:Contains(bar) then CURRENT_BARS:Insert(bar) end
+                                if not GLOBAL_BARS:Contains(bar) then
+                                    local charSV    = CharSV()
+                                    local index     = CURRENT_BARS:IndexOf(bar)
+
+                                    GLOBAL_BARS:Insert(bar)
+                                    _SVDB.ActionBars[#GLOBAL_BARS] = charSV.ActionBars[index]
+
+                                    CURRENT_BARS:RemoveByIndex(index)
+                                    tremove(charSV.ActionBars, index)
+                                end
+                            elseif not CURRENT_BARS:Contains(bar) then
+                                local charSV        = CharSV()
+                                local index         = GLOBAL_BARS:IndexOf(bar)
+
+                                CURRENT_BARS:Insert(bar)
+                                charSV.ActionBars[#CURRENT_BARS] = _SVDB.ActionBars[index]
+
+                                GLOBAL_BARS:RemoveByIndex(index)
+                                tremove(_SVDB.ActionBars, index)
                             end
                         end
                     }
@@ -778,6 +792,7 @@ function AddBar(self)
     }
 
     CURRENT_BARS:Insert(bar)
+    CharSV().ActionBars[#CURRENT_BARS] = bar:GetProfile()
 
     bar:SetMovable(true)
     bar:SetResizable(false)
@@ -793,7 +808,16 @@ function DeleteBar(self)
         self.Mask               = nil
     end
 
-    CURRENT_BARS:Remove(self)
+    local index                 = GLOBAL_BARS:IndexOf(self)
+    if index then
+        GLOBAL_BARS:RemoveByIndex(index)
+        tremove(_SVDB.ActionBars, index)
+    else
+        index                   = CURRENT_BARS:IndexOf(self)
+        CURRENT_BARS:RemoveByIndex(index)
+        tremove(CharSV().ActionBars, index)
+    end
+
     return ShadowBar.BarPool(self)
 end
 
