@@ -187,10 +187,12 @@ function AutoHideShowService()
         if not InCombatLockdown() then
             -- disable auto hide when key binding or place actions
             for i, bar in GLOBAL_BARS:GetIterator() do
+                bar.BackAutoHideCondition = bar.AutoHideCondition
                 bar.AutoHideCondition = nil
             end
 
             for i, bar in CURRENT_BARS:GetIterator() do
+                bar.BackAutoHideCondition = bar.AutoHideCondition
                 bar.AutoHideCondition = nil
             end
 
@@ -200,13 +202,15 @@ function AutoHideShowService()
 
             -- enable auto hide
             for i, bar in GLOBAL_BARS:GetIterator() do
-                bar.AutoHideCondition = _SVDB.ActionBars[i].Style.autoHideCondition or nil
+                bar.AutoHideCondition = bar.BackAutoHideCondition
+                bar.BackAutoHideCondition = nil
             end
 
             local charSV        = CharSV()
 
             for i, bar in CURRENT_BARS:GetIterator() do
-                bar.AutoHideCondition = charSV.ActionBars[i].Style.autoHideCondition or nil
+                bar.AutoHideCondition = bar.BackAutoHideCondition
+                bar.BackAutoHideCondition = nil
             end
         end
     end
