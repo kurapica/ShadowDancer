@@ -82,11 +82,6 @@ function OnLoad()
         i                       = i + 1
         itemCls                 = GetItemClassInfo(i)
     end
-
-    -- Fix the action button not work
-    if Scorpio.IsRetail then
-        SetCVar("ActionButtonUseKeyDown", 1)
-    end
 end
 
 function OnEnable()
@@ -141,7 +136,11 @@ function OnSpecChanged(self, spec)
 
     UpdateOriginalBar()
     SecureActionButton.Draggable["AshToAsh"] = charSV.Draggable
-    SecureActionButton.UseMouseDown["AshToAsh"] = charSV.UseMouseDown
+    if Scorpio.IsRetail then
+        SetCVar("ActionButtonUseKeyDown", charSV.UseMouseDown and 1 or 0)
+    else
+        SecureActionButton.UseMouseDown["AshToAsh"] = charSV.UseMouseDown
+    end
 
     -- Load Bars
     local barCount              = #charSV.ActionBars
@@ -554,7 +553,11 @@ function OpenMaskMenu(self, button)
                         get             = function() return CharSV().UseMouseDown end,
                         set             = function(value)
                             CharSV().UseMouseDown = value
-                            SecureActionButton.UseMouseDown["AshToAsh"] = value
+                            if Scorpio.IsRetail then
+                                SetCVar("ActionButtonUseKeyDown", value and 1 or 0)
+                            else
+                                SecureActionButton.UseMouseDown["AshToAsh"] = value
+                            end
                         end,
                     }
                 },
