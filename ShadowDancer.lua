@@ -82,6 +82,11 @@ function OnLoad()
         i                       = i + 1
         itemCls                 = GetItemClassInfo(i)
     end
+
+    -- Fix the action button not work
+    if Scorpio.IsRetail then
+        SetCVar("ActionButtonUseKeyDown", 1)
+    end
 end
 
 function OnEnable()
@@ -888,42 +893,20 @@ if Scorpio.IsRetail then
 
     function UpdateOriginalBar()
         if _SVDB.HideOriginalBar then
-            if MicroButtonAndBagsBar:GetParent() == MainMenuBar then
-                MainMenuBar:SetAlpha(0)
-                MainMenuBar:SetMovable(true)
-                MainMenuBar:SetUserPlaced(true)
-                MainMenuBar:ClearAllPoints()
-                MainMenuBar:SetPoint("RIGHT", UIParent, "LEFT", -1000, 0)
-
+            if MicroButtonAndBagsBar:GetParent() ~= HIDDEN_FRAME then
+                StanceBar:SetParent(HIDDEN_FRAME)
+                MainMenuBar:SetParent(HIDDEN_FRAME)
                 MicroButtonAndBagsBar:SetParent(HIDDEN_FRAME)
-
-                PetActionBarFrame:UnregisterAllEvents()
+                PetActionBar:SetParent(HIDDEN_FRAME)
+                StatusTrackingBarManager:SetParent(HIDDEN_FRAME)
             end
         else
             if MicroButtonAndBagsBar:GetParent() == HIDDEN_FRAME then
-                MainMenuBar:SetAlpha(1)
-                MainMenuBar:ClearAllPoints()
-                MainMenuBar:SetPoint("BOTTOM")
-                MainMenuBar:SetUserPlaced(false)
-                MainMenuBar:SetMovable(false)
-
-                MicroButtonAndBagsBar:SetParent(MainMenuBar)
-
-                PetActionBarFrame:RegisterEvent("PLAYER_CONTROL_LOST")
-                PetActionBarFrame:RegisterEvent("PLAYER_CONTROL_GAINED")
-                PetActionBarFrame:RegisterEvent("PLAYER_FARSIGHT_FOCUS_CHANGED")
-                PetActionBarFrame:RegisterEvent("UNIT_PET")
-                PetActionBarFrame:RegisterEvent("UNIT_FLAGS")
-                PetActionBarFrame:RegisterEvent("PET_BAR_UPDATE")
-                PetActionBarFrame:RegisterEvent("PET_BAR_UPDATE_COOLDOWN")
-                PetActionBarFrame:RegisterEvent("PET_BAR_SHOWGRID")
-                PetActionBarFrame:RegisterEvent("PET_BAR_HIDEGRID")
-                PetActionBarFrame:RegisterEvent("PET_BAR_UPDATE_USABLE")
-                PetActionBarFrame:RegisterEvent("PET_UI_UPDATE")
-                PetActionBarFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
-                PetActionBarFrame:RegisterEvent("UPDATE_VEHICLE_ACTIONBAR")
-                PetActionBarFrame:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
-                PetActionBarFrame:RegisterUnitEvent("UNIT_AURA", "pet")
+                StanceBar:SetParent(UIParent)
+                MainMenuBar:SetParent(UIParent)
+                MicroButtonAndBagsBar:SetParent(UIParent)
+                PetActionBar:SetParent(UIParent)
+                StatusTrackingBarManager:SetParent(UIParent)
             end
         end
     end
