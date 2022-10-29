@@ -50,6 +50,7 @@ function OnEnable()
     ExtraActionButton:SetActionPage(GetExtraBarIndex())
     ExtraActionButton:SetScale(_SVDB.ExtraActionButton.Scale)
     ExtraActionButton.HotKey    = _SVDB.ExtraActionButton.HotKey
+    ExtraActionButton.GridAlwaysShow = true
 
     ExtraActionButton:GetPropertyChild("BackgroundTexture"):InstantApplyStyle()
 
