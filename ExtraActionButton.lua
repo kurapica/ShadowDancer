@@ -9,7 +9,7 @@
 Scorpio           "ShadowDancer.ExtraActionButton"      "1.0.0"
 --========================================================--
 
-if not GetExtraBarIndex then return end
+if not GetExtraBarIndex or Scorpio.IsRetail then return end
 
 -----------------------------------------------------------
 -- Addon Event Handler

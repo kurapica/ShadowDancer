@@ -466,7 +466,7 @@ class "DancerButton" (function(_ENV)
             isLast              = self:GetID() == self:GetParent().Count
         end
 
-        Delay(0.2)
+        Delay(DancerButton.FlyoutConfirmTime)
 
         while IsMouseButtonDown("LeftButton") and not InCombatLockdown() and IsControlKeyDown() do
             local x, y          = GetCursorPosition()
@@ -630,6 +630,12 @@ class "DancerButton" (function(_ENV)
         end
         return bar:OnEnter()
     end
+
+    ------------------------------------------------------
+    --                  Static Property                 --
+    ------------------------------------------------------
+    __Static__()
+    property "FlyoutConfirmTime"{ type = Number, default = 0.2 }
 
     ------------------------------------------------------
     --                     Property                     --
@@ -1023,7 +1029,7 @@ class "DancerButton" (function(_ENV)
                 -- Check repeat
                 local btn = down and "down" or "up"
                 if not AllowButtons[btn] then
-                    return button
+                    return self:GetAttribute("actiontype") ~= "flyout" and button or nil
                 end
 
                 -- Toggle always flyout

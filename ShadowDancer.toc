@@ -11,7 +11,7 @@
 ## OptionalDeps: Masque
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
-## SavedVariables: ShadowDancer_DB
+## SavedVariables: ShadowDancer_DB, ShadowDancer_Settings
 ## SavedVariablesPerCharacter: ShadowDancer_CharDB
 ## X-Curse-Project-ID: 494640
 ## X-Wago-ID: 0mNwnzGo

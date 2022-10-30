@@ -34,12 +34,12 @@ IS_SECURE_LOADED                = false
 -- Addon Event Handler
 -----------------------------------------------------------
 function OnLoad()
+    _Addon:SetSavedVariable("ShadowDancer_Settings"):UseConfigPanel(true)
+
+    -- Keep using two set of saved variables, could move to the new config system by time
     _SVDB                       = SVManager("ShadowDancer_DB", "ShadowDancer_CharDB")
 
     _SVDB:SetDefault            {
-        PopupDuration           = 0.25,
-        HideOriginalBar         = false,
-
         -- Global Bars
         ActionBars              = {}
     }
@@ -49,13 +49,9 @@ function OnLoad()
     }
 
     CharSV():SetDefault         {
-        Draggable               = true,
-        UseMouseDown            = false,
-
         ActionBars              = {},
     }
 
-    ShadowBar.PopupDuration     = _SVDB.PopupDuration
 
     _AutoGenBlackList           = _SVDB.Char.AutoGenBlackList
 
@@ -134,14 +130,6 @@ function OnSpecChanged(self, spec)
         }
     end
 
-    UpdateOriginalBar()
-    SecureActionButton.Draggable["AshToAsh"] = charSV.Draggable
-    if Scorpio.IsRetail then
-        SetCVar("ActionButtonUseKeyDown", charSV.UseMouseDown and 1 or 0)
-    else
-        SecureActionButton.UseMouseDown["AshToAsh"] = charSV.UseMouseDown
-    end
-
     -- Load Bars
     local barCount              = #charSV.ActionBars
 
@@ -218,6 +206,64 @@ function AutoHideShowService()
             end
         end
     end
+end
+
+-----------------------------------------------------------
+-- Global Config
+-----------------------------------------------------------
+
+-- The flyout popup duration
+__Config__(_Config, RangeValue[{0.1, 3, 0.01}], 0.25)
+function PopupDuration(duration)
+    ShadowBar.PopupDuration     = duration
+end
+
+__Config__(_Config, RangeValue[{0.1, 5, 0.01}], 0.2)
+function FlyoutConfirmTime(duration)
+    DancerButton.FlyoutConfirmTime = duration
+end
+
+__Config__(_Config, true)
+function UseKeyDown(down)
+    if Scorpio.IsRetail then
+        SetCVar("ActionButtonUseKeyDown", down and 1 or 0)
+    else
+        SecureActionButton.UseMouseDown["AshToAsh"] = down
+    end
+end
+
+__Config__(_CharConfig, false)
+function LockBar(lock)
+    SecureActionButton.Draggable["AshToAsh"] = not lock
+end
+
+__Config__(_CharConfig, false) __NoCombat__()
+function HideMainMenuBar(hide)
+    MainMenuBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+end
+
+if Scorpio.IsRetail then
+
+__Config__(_CharConfig, false) __NoCombat__()
+function HideStanceBar(hide)
+    StanceBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+end
+
+__Config__(_CharConfig, false) __NoCombat__()
+function HideMicroButtonAndBagsBar(hide)
+    MicroButtonAndBagsBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+end
+
+__Config__(_CharConfig, false) __NoCombat__()
+function HidePetActionBar(hide)
+    PetActionBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+end
+
+__Config__(_CharConfig, false) __NoCombat__()
+function HideStatusTrackingBarManager(hide)
+    StatusTrackingBarManager:SetParent(hide and HIDDEN_FRAME or UIParent)
+end
+
 end
 
 
@@ -525,53 +571,7 @@ function OpenMaskMenu(self, button)
         },
         {
             text                = _Locale["Global Settings"],
-            submenu             = {
-                {
-                    text                = _Locale["Flyout Popup Duration"] .. " - " .. _SVDB.PopupDuration,
-                    click               = function()
-                        local value     = PickRange(_Locale["Choose the flyout popup duration"], 0.10, 2, 0.01, _SVDB.PopupDuration)
-                        if value then
-                            _SVDB.PopupDuration = value
-                            ShadowBar.PopupDuration = value
-                        end
-                    end
-                },
-                {
-                    text                = _Locale["Lock Action"],
-                    check               = {
-                        get             = function() return not CharSV().Draggable end,
-                        set             = function(value)
-                            value       = not value
-                            CharSV().Draggable = value
-                            SecureActionButton.Draggable["AshToAsh"] = value
-                        end,
-                    }
-                },
-                {
-                    text                = _Locale["Use Mouse Down"],
-                    check               = {
-                        get             = function() return CharSV().UseMouseDown end,
-                        set             = function(value)
-                            CharSV().UseMouseDown = value
-                            if Scorpio.IsRetail then
-                                SetCVar("ActionButtonUseKeyDown", value and 1 or 0)
-                            else
-                                SecureActionButton.UseMouseDown["AshToAsh"] = value
-                            end
-                        end,
-                    }
-                },
-                {
-                    text                = _Locale["Hide original action bar"],
-                    check               = {
-                        get             = function() return _SVDB.HideOriginalBar end,
-                        set             = function(value)
-                            _SVDB.HideOriginalBar = value
-                            UpdateOriginalBar()
-                        end,
-                    },
-                },
-            }
+            click               = function() LockBars() _Addon:ShowConfigUI() end,
         },
         {
             text                = _Locale["Action Bar Settings"],
@@ -893,41 +893,9 @@ if Scorpio.IsRetail then
     function CharSV(spec)
         return spec and _SVDB.Char.Specs[spec] or _SVDB.Char.Spec
     end
-
-    function UpdateOriginalBar()
-        if _SVDB.HideOriginalBar then
-            if MicroButtonAndBagsBar:GetParent() ~= HIDDEN_FRAME then
-                StanceBar:SetParent(HIDDEN_FRAME)
-                MainMenuBar:SetParent(HIDDEN_FRAME)
-                MicroButtonAndBagsBar:SetParent(HIDDEN_FRAME)
-                PetActionBar:SetParent(HIDDEN_FRAME)
-                StatusTrackingBarManager:SetParent(HIDDEN_FRAME)
-            end
-        else
-            if MicroButtonAndBagsBar:GetParent() == HIDDEN_FRAME then
-                StanceBar:SetParent(UIParent)
-                MainMenuBar:SetParent(UIParent)
-                MicroButtonAndBagsBar:SetParent(UIParent)
-                PetActionBar:SetParent(UIParent)
-                StatusTrackingBarManager:SetParent(UIParent)
-            end
-        end
-    end
 else
     function CharSV()
         return _SVDB.Char
-    end
-
-    function UpdateOriginalBar()
-        if _SVDB.HideOriginalBar then
-            if MainMenuBar:GetParent() == UIParent then
-                MainMenuBar:SetParent(HIDDEN_FRAME)
-            end
-        else
-            if MainMenuBar:GetParent() == HIDDEN_FRAME then
-                MainMenuBar:SetParent(UIParent)
-            end
-        end
     end
 end
 
@@ -1008,15 +976,15 @@ Style[ExportGuide]              = {
 
     GlobalBars                  = {
         location                = { Anchor("TOPLEFT", 24, -32) },
-        label                   = { text = _Locale["Global Action Bars"] },
+        text                    = _Locale["Global Action Bars"],
     },
     CurrentBar                  = {
         location                = { Anchor("TOP", 0, -16, "GlobalBars", "BOTTOM") },
-        label                   = { text = _Locale["Current Action Bars"] },
+        text                    = _Locale["Current Action Bars"],
     },
     ClearAllBars                = {
         location                = { Anchor("TOP", 0, -16, "CurrentBar", "BOTTOM") },
-        label                   = { text = _Locale["Clear Existed Bars"] },
+        text                    = _Locale["Clear Existed Bars"],
     },
 
     Result                      = {

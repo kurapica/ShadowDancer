@@ -12,6 +12,18 @@ L["BAR6"]                       = "动作条6"
 L["PET"]                        = "宠物动作条"
 L["STANCEBAR"]                  = "姿态条"
 
+
+L["popupduration"] 				= "弹出条显示时间"
+L["flyoutconfirmtime"] 			= "创建弹出条的确认时间"
+L["usekeydown"] 				= "按下按钮施法"
+L["lockbar"] 					= "锁定动作条"
+L["hidemainmenubar"] 			= "隐藏主动作条"
+L["hidestancebar"] 				= "隐藏姿态栏"
+L["hidemicrobuttonandbagsbar"] 	= "隐藏背包栏"
+L["hidepetactionbar"] 			= "隐藏宠物栏"
+L["hidestatustrackingbarmanager"] = "隐藏经验条"
+
+
 L["RaidTarget"]                 = "团队标记"
 L["WorldMarker"]                = "世界标记"
 L["BagSlot"]                    = "背包"
