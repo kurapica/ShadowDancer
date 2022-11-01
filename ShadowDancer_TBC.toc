@@ -7,7 +7,7 @@
 ## OptionalDeps: Masque
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
-## SavedVariables: ShadowDancer_DB
+## SavedVariables: ShadowDancer_DB, ShadowDancer_Settings
 ## SavedVariablesPerCharacter: ShadowDancer_CharDB
 
 # Localization
