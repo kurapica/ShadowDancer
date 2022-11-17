@@ -65,6 +65,9 @@ do
 
     CONTAINER_ITEM_LIST         = {}
 
+    GetContainerNumSlots        = _G.GetContainerNumSlots or _G.C_Container and _G.C_Container.GetContainerNumSlots
+    GetContainerItemID          = _G.GetContainerItemID or _G.C_Container and _G.C_Container.GetContainerItemID
+
     ------------------------------------------------------
     --                Secure Environment                --
     ------------------------------------------------------

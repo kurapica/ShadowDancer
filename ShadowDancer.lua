@@ -264,8 +264,13 @@ function HideStatusTrackingBarManager(hide)
     StatusTrackingBarManager:SetParent(hide and HIDDEN_FRAME or UIParent)
 end
 
+__Config__(_CharConfig, false) __NoCombat__()
+function HidePlayerCastingBarFrame(hide)
+    PlayerCastingBarFrame:SetParent(hide and HIDDEN_FRAME or UIParent)
+    OverlayPlayerCastingBarFrame:SetParent(hide and HIDDEN_FRAME or UIParent)
 end
 
+end
 
 -----------------------------------------------------------
 -- Slash Commands
