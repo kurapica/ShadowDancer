@@ -42,6 +42,7 @@ enum "SwapMode"                 {
     None                        = 0,
     ToRoot                      = 1,
     Queue                       = 2,
+    Toggle                      = 3,
 }
 
 __Sealed__()
@@ -1035,8 +1036,31 @@ class "DancerButton" (function(_ENV)
                     return self:GetAttribute("actiontype") ~= "flyout" and button or nil
                 end
 
+                -- Check swap mode
+                local swapBar = FLYOUT_MAP[self]
+                local swapMode
+
+                if swapBar then
+                    swapMode = swapBar:GetAttribute("swapMode")
+                    if swapMode ~= 1 and swapMode ~= 2 then
+                        swapBar = nil
+                    end
+                end
+
                 -- Toggle always flyout
                 if FLYOUT_MAP[self] then
+                    -- Toggle the bar
+                    if swapMode == 3 then
+                        self:SetAttribute("alwaysFlyout", not self:GetAttribute("alwaysFlyout"))
+                        if self:GetAttribute("alwaysFlyout") then
+                            FLYOUT_MAP[self]:Show()
+                        else
+                            Manager:RunFor(self, HIDE_FLYOUT_BARS)
+                        end
+
+                        return
+                    end
+
                     if button == "RightButton" and not (IsShiftKeyDown() or IsControlKeyDown() or IsAltKeyDown()) then
                         -- No modify right click to toggle always show of the flyout bar
                         self:SetAttribute("alwaysFlyout", not self:GetAttribute("alwaysFlyout"))
@@ -1074,17 +1098,6 @@ class "DancerButton" (function(_ENV)
 
                             return false
                         end
-                    end
-                end
-
-                -- Check swap mode
-                local swapBar = FLYOUT_MAP[self]
-                local swapMode
-
-                if swapBar then
-                    swapMode = swapBar:GetAttribute("swapMode")
-                    if swapMode ~= 1 and swapMode ~= 2 then
-                        swapBar = nil
                     end
                 end
 

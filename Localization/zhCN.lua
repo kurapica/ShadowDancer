@@ -113,3 +113,4 @@ L["Change the swap mode of the flyout bar"] = "修改弹出条的动作交换模
 L["No action swap"]                         = "禁止动作交换"
 L["Swap the action to root button"]         = "点击按钮动作和根按钮交换"
 L["Use the bar as the action queue"]        = "弹出条做为施法队列"
+L["Cast to toggle flyout"] 	 	= "切换弹出条"

@@ -173,37 +173,37 @@ end
 
 __Service__(true)
 function AutoHideShowService()
+    local cache                 = {}
+
     while true do
         local event             = Wait("ACTIONBAR_SHOWGRID", "SCORPIO_ACTION_BUTTON_KEY_BINDING_START")
 
         if not InCombatLockdown() then
+            wipe(cache)
+
             -- disable auto hide when key binding or place actions
             for i, bar in GLOBAL_BARS:GetIterator() do
-                bar.BackAutoHideCondition = bar.AutoHideCondition
-                bar.AutoHideCondition = nil
+                if bar.AutoHideCondition then
+                    cache[bar]  = bar.AutoHideCondition
+                    bar.AutoHideCondition = nil
+                end
             end
 
             for i, bar in CURRENT_BARS:GetIterator() do
-                bar.BackAutoHideCondition = bar.AutoHideCondition
-                bar.AutoHideCondition = nil
+                if bar.AutoHideCondition then
+                    cache[bar]  = bar.AutoHideCondition
+                    bar.AutoHideCondition = nil
+                end
             end
 
             NextEvent(event == "ACTIONBAR_SHOWGRID" and "ACTIONBAR_HIDEGRID" or "SCORPIO_ACTION_BUTTON_KEY_BINDING_STOP")
             NoCombat()
 
-
-            -- enable auto hide
-            for i, bar in GLOBAL_BARS:GetIterator() do
-                bar.AutoHideCondition = bar.BackAutoHideCondition
-                bar.BackAutoHideCondition = nil
+            for bar, autoHide in pairs(cache) do
+                bar.AutoHideCondition = autoHide
             end
 
-            local charSV        = CharSV()
-
-            for i, bar in CURRENT_BARS:GetIterator() do
-                bar.AutoHideCondition = bar.BackAutoHideCondition
-                bar.BackAutoHideCondition = nil
-            end
+            wipe(cache)
         end
     end
 end
@@ -266,8 +266,8 @@ end
 
 __Config__(_CharConfig, false) __NoCombat__()
 function HidePlayerCastingBarFrame(hide)
-    PlayerCastingBarFrame:SetParent(hide and HIDDEN_FRAME or UIParent)
-    OverlayPlayerCastingBarFrame:SetParent(hide and HIDDEN_FRAME or UIParent)
+    PlayerCastingBarFrame:SetUnit(not hide and "player" or nil)
+    OverlayPlayerCastingBarFrame:SetUnit(not hide and "player" or nil)
 end
 
 end
@@ -524,6 +524,10 @@ function OpenMaskMenu(self, button)
                 text            = _Locale["Use the bar as the action queue"],
                 checkvalue      = SwapMode.Queue
             },
+            {
+                text            = _Locale["Cast to toggle flyout"],
+                checkvalue      = SwapMode.Toggle
+            }
         }
     end
 
@@ -894,7 +898,7 @@ end
 -----------------------------------------------------------
 -- Client Helpers
 -----------------------------------------------------------
-if Scorpio.IsRetail then
+if Scorpio.IsRetail or Scorpio.IsWLK then
     function CharSV(spec)
         return spec and _SVDB.Char.Specs[spec] or _SVDB.Char.Spec
     end
