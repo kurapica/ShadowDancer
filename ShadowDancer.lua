@@ -174,18 +174,24 @@ end
 __Service__(true)
 function AutoHideShowService()
     local cache                 = {}
+    local autoFadeout           = {}
 
     while true do
         local event             = Wait("ACTIONBAR_SHOWGRID", "SCORPIO_ACTION_BUTTON_KEY_BINDING_START")
 
-        if not InCombatLockdown() then
+        if not InCombatLockdown() and (event == "SCORPIO_ACTION_BUTTON_KEY_BINDING_START" or GetCursorInfo()) then
             wipe(cache)
+            wipe(autoFadeout)
 
             -- disable auto hide when key binding or place actions
             for i, bar in GLOBAL_BARS:GetIterator() do
                 if bar.AutoHideCondition then
                     cache[bar]  = bar.AutoHideCondition
                     bar.AutoHideCondition = nil
+                end
+                if bar.AutoFadeOut then
+                    autoFadeout[bar] = true
+                    bar.AutoFadeOut  = false
                 end
             end
 
@@ -194,16 +200,30 @@ function AutoHideShowService()
                     cache[bar]  = bar.AutoHideCondition
                     bar.AutoHideCondition = nil
                 end
+                if bar.AutoFadeOut then
+                    autoFadeout[bar] = true
+                    bar.AutoFadeOut  = false
+                end
             end
 
-            NextEvent(event == "ACTIONBAR_SHOWGRID" and "ACTIONBAR_HIDEGRID" or "SCORPIO_ACTION_BUTTON_KEY_BINDING_STOP")
+            if event == "ACTIONBAR_SHOWGRID" then
+                while GetCursorInfo() do
+                    Wait(2, "ACTIONBAR_HIDEGRID")
+                end
+            else
+                NextEvent("SCORPIO_ACTION_BUTTON_KEY_BINDING_STOP")
+            end
             NoCombat()
 
             for bar, autoHide in pairs(cache) do
                 bar.AutoHideCondition = autoHide
             end
+            for bar in pairs(autoFadeout) do
+                bar.AutoFadeOut = true
+            end
 
             wipe(cache)
+            wipe(autoFadeout)
         end
     end
 end
