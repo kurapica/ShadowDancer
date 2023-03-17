@@ -271,7 +271,12 @@ end
 
 __Config__(_CharConfig, false) __NoCombat__()
 function HideMicroButtonAndBagsBar(hide)
-    MicroButtonAndBagsBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+    BagsBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+end
+
+__Config__(_CharConfig, false) __NoCombat__()
+function HideMicroMenu(hide)
+    MicroMenu:SetParent(hide and HIDDEN_FRAME or UIParent)
 end
 
 __Config__(_CharConfig, false) __NoCombat__()

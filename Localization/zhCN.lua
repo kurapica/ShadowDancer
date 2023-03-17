@@ -23,6 +23,7 @@ L["hidemicrobuttonandbagsbar"] 	= "隐藏背包栏"
 L["hidepetactionbar"] 			= "隐藏宠物栏"
 L["hidestatustrackingbarmanager"] = "隐藏经验条"
 L["hideplayercastingbarframe"] 	= "隐藏施法条"
+L["hidemicromenu"] 				= "隐藏微型菜单"
 
 
 L["RaidTarget"]                 = "团队标记"
