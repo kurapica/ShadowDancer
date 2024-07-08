@@ -13,40 +13,23 @@ Scorpio           "ShadowDancer.MasqueSkin"          "1.0.0"
 
 import "Scorpio.Secure.SecureActionButton"
 
+Masque                          = LibStub("Masque", true)
+MasqueSkin                      = Masque:GetSkins() or {}
+defaultSkin                     = MasqueSkin.Default or {}
+
 function OnLoad(self)
-    _SVDB:SetDefault            {
-        MasqueSkin              = "Classic",
-    }
-end
-
-function OnEnable(self)
-    Masque                      = LibStub("Masque", true)
-    MasqueSkin                  = Masque:GetSkins() or {}
-    defaultSkin                 = MasqueSkin.Default or {}
-
-    if not MasqueSkin[_SVDB.MasqueSkin] then
-        _SVDB.MasqueSkin        = "Classic"
+    if _SVDB.MasqueSkin and _SVDB.MasqueSkin ~= "Classic" and _Config.MasqueSkin:GetValue() == "Classic" then
+        return MasqueSkin(_SVDB.MasqueSkin)
     end
-
-    UpdateMasqueSkin()
 end
 
-__SystemEvent__()
-function SHADOWDANCER_OPEN_MENU(self, menu)
-    local config                = XDictionary(pairs(MasqueSkin)).Keys:ToList():Sort():Map(function(v) return { text = v, checkvalue = v } end):ToTable()
-    config.check                = { get = function() return _SVDB.MasqueSkin end, set = function(value) _SVDB.MasqueSkin = value return UpdateMasqueSkin() end }
-    tinsert(menu,               {
-        text                    = _Locale["Masque Skin"],
-        submenu                 = config,
-    })
-end
-
-function UpdateMasqueSkin()
-    if not MasqueSkin[_SVDB.MasqueSkin] then return Style.UpdateSkin("ShadowDancerMasqueSkin", {}) end
+__Config__(_Config, enum (XDictionary(pairs(MasqueSkin)).Keys:ToTable()), "Classic")
+function ActiveMasqueSkin(skin)
+    if not MasqueSkin[skin] then return Style.UpdateSkin("ShadowDancerMasqueSkin", {}) end
 
     -- Generate the Scorpio skin based on the masque skin
     -- The action button and masque use 36 * 36 as the button size, so no scale convertion
-    local masqueSkin            = MasqueSkin[_SVDB.MasqueSkin]
+    local masqueSkin            = MasqueSkin[skin]
     local skin                  = {
         FlyoutBorder            = NIL,
         FlyoutBorderShadow      = NIL,
