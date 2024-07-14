@@ -635,17 +635,16 @@ class "DancerButton" (function(_ENV)
         return bar:OnEnter()
     end
 
-    local texMetaIndex do
-        local tex               = WorldFrame:CreateTexture()
-        tex:Hide()
-        texMetaIndex            = getmetatable(tex).__index
-    end
-
     ------------------------------------------------------
     --                  Static Property                 --
     ------------------------------------------------------
     __Static__()
     property "FlyoutConfirmTime"{ type = Number, default = 0.2 }
+
+    ------------------------------------------------------
+    --                      Event                       --
+    ------------------------------------------------------
+    event "OnActionRefresh"
 
     ------------------------------------------------------
     --                     Property                     --
@@ -989,36 +988,7 @@ class "DancerButton" (function(_ENV)
             end
         end
 
-        if self.ActionType == "macro" then
-            local name, tex             = GetMacroInfo(self.ActionTarget)
-            if name:match("^_M6") then
-                Next(function()
-                    while not self:GetPropertyChild("IconTexture") do
-                        Next()
-                    end
-
-                    -- trigger the M6 hook
-                    texMetaIndex.SetTexture(self:GetPropertyChild("IconTexture"), tex)
-                end)
-            end
-        end
-
-        if self.ActionType == "action" then
-            local type, id              = GetActionInfo(self.ActionTarget)
-            if type == "macro" then
-                local name, tex         = GetMacroInfo(id)
-                if name:match("^_M6") then
-                    Next(function()
-                        while not self:GetPropertyChild("IconTexture") do
-                            Next()
-                        end
-
-                        -- trigger the M6 hook
-                        texMetaIndex.SetTexture(self:GetPropertyChild("IconTexture"), tex)
-                    end)
-                end
-            end
-        end
+        return OnActionRefresh(self)
     end
 
     __SecureMethod__()
