@@ -419,7 +419,6 @@ do
     end
 end
 
-__Sealed__()
 class "DancerButton" (function(_ENV)
     inherit "SecureActionButton"
 
@@ -973,18 +972,18 @@ class "DancerButton" (function(_ENV)
                 end
             else
                 local baseBar           = self:GetParent()
-                if not baseBar.IsFlyoutBar then return end
+                if baseBar.IsFlyoutBar then
 
-                local root              = baseBar:GetParent()
-                if not (root and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item) then return end
+                    local root          = baseBar:GetParent()
+                    if not (root and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item) then return end
 
-                local id                = self:GetID()
-                local map               = AUTOGEN_MAP[root]
-                if not map or #map < id then return end
-
-                _AutoGenBlackList[tremove(map, id)] = true
-
-                root:RefreshAutoGen(map, "item")
+                    local id            = self:GetID()
+                    local map           = AUTOGEN_MAP[root]
+                    if map and #map >= id then
+                        _AutoGenBlackList[tremove(map, id)] = true
+                        root:RefreshAutoGen(map, "item")
+                    end
+                end
             end
         end
 

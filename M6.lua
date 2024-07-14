@@ -25,7 +25,7 @@ interface "IM6"                 (function(_ENV)
         local m6tex             = nil
         if self.ActionType == "macro" or self.ActionType == "action" then
             local name, tex     = GetMacroInfo(self.ActionTarget)
-            if name:match("^_M6") then
+            if name and name:match("^_M6") then
                 m6tex           = tex
             end
         end
@@ -34,7 +34,7 @@ interface "IM6"                 (function(_ENV)
             local type, id      = GetActionInfo(self.ActionTarget)
             if type == "macro" then
                 local name, tex = GetMacroInfo(id)
-                if name:match("^_M6") then
+                if name and name:match("^_M6") then
                     m6tex       = tex
                 end
             end
@@ -42,16 +42,18 @@ interface "IM6"                 (function(_ENV)
 
         if m6tex then
             self.__M6           = true
+
             Next(function()
                 while not self:GetPropertyChild("IconTexture") do
                     Next()
                 end
 
                 -- trigger the M6 hook
-                texMetaIndex.SetTexture(self:GetPropertyChild("IconTexture"), tex)
+                texMetaIndex.SetTexture(self:GetPropertyChild("IconTexture"), m6tex)
             end)
         elseif self.__M6 then
             self.__M6           = nil
+            print("Trigger release")
             Next(function()
                 while not self:GetPropertyChild("IconTexture") do
                     Next()
@@ -69,6 +71,7 @@ interface "IM6"                 (function(_ENV)
 end)
 
 class "DancerButton"            (function(_ENV)
+    extend "IM6"
 
     local shareCooldown         = { start = 0, duration = 0 }
 

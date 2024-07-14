@@ -18,6 +18,7 @@ localization\zhTW.lua
 # Core
 Template.lua
 ShadowDancer.lua
+M6.lua
 
 # Skin
 MasqueSkin.lua
