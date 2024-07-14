@@ -1,10 +1,10 @@
-## Interface: 11502
+## Interface: 11503
 ## Title: ShadowDancer
 ## Author: kurapica125@outlook.com
 ## Version: @project-version@
 ## Notes: A flexible action bar mod
 ## Dependencies: Scorpio
-## OptionalDeps: Masque
+## OptionalDeps: Masque, M6
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
 ## SavedVariables: ShadowDancer_DB, ShadowDancer_Settings
