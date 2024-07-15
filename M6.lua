@@ -20,53 +20,14 @@ interface "IM6"                 (function(_ENV)
         texMetaIndex            = getmetatable(tex).__index
     end
 
-    local function OnActionRefresh(self)
-        -- Add support to M6
-        local m6tex             = nil
-        if self.ActionType == "macro" or self.ActionType == "action" then
-            local name, tex     = GetMacroInfo(self.ActionTarget)
-            if name and name:match("^_M6") then
-                m6tex           = tex
-            end
-        end
-
-        if self.ActionType == "action" then
-            local type, id      = GetActionInfo(self.ActionTarget)
-            if type == "macro" then
-                local name, tex = GetMacroInfo(id)
-                if name and name:match("^_M6") then
-                    m6tex       = tex
-                end
-            end
-        end
-
-        if m6tex then
-            self.__M6           = true
-
-            Next(function()
-                while not self:GetPropertyChild("IconTexture") do
-                    Next()
-                end
-
-                -- trigger the M6 hook
-                texMetaIndex.SetTexture(self:GetPropertyChild("IconTexture"), m6tex)
-            end)
-        elseif self.__M6 then
-            self.__M6           = nil
-            print("Trigger release")
-            Next(function()
-                while not self:GetPropertyChild("IconTexture") do
-                    Next()
-                end
-
-                -- trigger the M6 hook
-                texMetaIndex.SetTexture(self:GetPropertyChild("IconTexture"), "")
-            end)
-        end
-    end
+    local setTexture            = function(self, ...) return texMetaIndex.SetTexture(self, ...) end
 
     function __init(self)
-        self.OnActionRefresh    = self.OnActionRefresh + OnActionRefresh
+        self.OnChildChanged     = self.OnChildChanged + function(self, child, isAdd)
+            if isAdd and child:GetChildPropertyName() == "IconTexture" then
+                child.SetTexture= setTexture
+            end
+        end
     end
 end)
 

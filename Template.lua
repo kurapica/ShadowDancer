@@ -641,11 +641,6 @@ class "DancerButton" (function(_ENV)
     property "FlyoutConfirmTime"{ type = Number, default = 0.2 }
 
     ------------------------------------------------------
-    --                      Event                       --
-    ------------------------------------------------------
-    event "OnActionRefresh"
-
-    ------------------------------------------------------
     --                     Property                     --
     ------------------------------------------------------
     --- Whether use custom flyout logic
@@ -986,8 +981,6 @@ class "DancerButton" (function(_ENV)
                 end
             end
         end
-
-        return OnActionRefresh(self)
     end
 
     __SecureMethod__()
