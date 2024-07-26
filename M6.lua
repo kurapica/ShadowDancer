@@ -24,7 +24,7 @@ interface "IM6"                 (function(_ENV)
 
     function __init(self)
         self.OnChildChanged     = self.OnChildChanged + function(self, child, isAdd)
-            if isAdd and child:GetChildPropertyName() == "IconTexture" then
+            if isAdd and child:GetChildPropertyName() == "icontexture" then
                 child.SetTexture= setTexture
             end
         end

@@ -1375,9 +1375,9 @@ function RefreshPlayerSpellIconInfo()
         local tabEnd = offset + numSpells;
         for j = offset, tabEnd - 1 do
             --to get spell info by slot, you have to pass in a pet argument
-            local spellType, ID = GetSpellBookItemInfo(j, "player");
+            local spellType, ID = GetSpellBookItemInfo(j, SpellBookSpellBank.PLAYER);
             if (spellType ~= "FUTURESPELL") then
-                local fileID = GetSpellBookItemTexture(j, "player");
+                local fileID = GetSpellBookItemTexture(j, SpellBookSpellBank.PLAYER);
                 if (fileID) then
                     activeIcons[fileID] = true;
                 end

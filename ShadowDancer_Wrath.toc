@@ -21,7 +21,6 @@ localization\zhTW.lua
 Template.lua
 ShadowDancer.lua
 ExtraActionButton.lua
-M6.lua
 
 # Skin
 MasqueSkin.lua
