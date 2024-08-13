@@ -1382,7 +1382,7 @@ function RefreshPlayerSpellIconInfo()
                     activeIcons[fileID] = true;
                 end
             end
-            if (spellType == SpellBookItemType.FLYOUT) then
+            if (spellType == SpellBookItemType.FLYOUT and ID) then
                 local _, _, numSlots, isKnown = GetFlyoutInfo(ID);
                 if (isKnown and numSlots > 0) then
                     for k = 1, numSlots do
