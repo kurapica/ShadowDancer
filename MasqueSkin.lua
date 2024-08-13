@@ -13,17 +13,22 @@ Scorpio           "ShadowDancer.MasqueSkin"          "1.0.0"
 
 import "Scorpio.Secure.SecureActionButton"
 
-Masque                          = LibStub("Masque", true)
-MasqueSkin                      = Masque:GetSkins() or {}
-defaultSkin                     = MasqueSkin.Default or {}
-
-function OnLoad(self)
-    if _SVDB.MasqueSkin and _SVDB.MasqueSkin ~= "Classic" and _Config.MasqueSkin:GetValue() == "Classic" then
-        return MasqueSkin(_SVDB.MasqueSkin)
+do
+    Masque                      = LibStub("Masque", true)
+    MasqueSkin                  = Masque:GetSkins() or {}
+    skinList                    = XDictionary(pairs(MasqueSkin)).Keys:ToList()
+    if not skinList:Contains("Classic") then
+        skinList:Insert(1, "Classic")
     end
 end
 
-__Config__(_Config, enum (XDictionary(pairs(MasqueSkin)).Keys:ToTable()), "Classic")
+function OnLoad(self)
+    if _SVDB.MasqueSkin and _SVDB.MasqueSkin ~= "Classic" and _Config.MasqueSkin:GetValue() == "Classic" then
+        return ActiveMasqueSkin(_SVDB.MasqueSkin)
+    end
+end
+
+__Config__(_Config, enum (skinList), "Classic")
 function ActiveMasqueSkin(skin)
     if not MasqueSkin[skin] then return Style.UpdateSkin("ShadowDancerMasqueSkin", {}) end
 
@@ -284,3 +289,4 @@ Style.RegisterSkin("ShadowDancerMasqueSkin", {
 })
 
 Style.ActiveSkin("ShadowDancerMasqueSkin", DancerButton)
+skinList                        = nil
