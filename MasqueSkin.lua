@@ -28,7 +28,7 @@ function OnLoad(self)
     end
 end
 
-__Config__(_Config, enum (skinList), "Classic")
+__Config__(_Config, enum (skinList:ToTable()), "Classic")
 function ActiveMasqueSkin(skin)
     if not MasqueSkin[skin] then return Style.UpdateSkin("ShadowDancerMasqueSkin", {}) end
 
