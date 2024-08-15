@@ -5,11 +5,11 @@
 -- Create Date :  2021/06/23                              --
 --========================================================--
 
-if not IsAddOnLoaded("Masque") then return end
-
 --========================================================--
 Scorpio           "ShadowDancer.MasqueSkin"          "1.0.0"
 --========================================================--
+
+if not IsAddOnLoaded("Masque") then return end
 
 import "Scorpio.Secure.SecureActionButton"
 
