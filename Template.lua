@@ -305,6 +305,11 @@ do
 
                         itemClassMap[cls.name][rule.subclass and cls[rule.subclass] or -1] = root
                     end
+
+                    if not AUTOGEN_MAP[root] then
+                        AUTOGEN_MAP[root] = {}
+                        changed[root] = true
+                    end
                 else
                     AUTOGEN_ITEM_ROOT[root] = nil
                 end
@@ -339,7 +344,7 @@ do
 
                 for root in pairs(changed) do
                     local map       = AUTOGEN_MAP[root]
-                    for i = #map, indexMap[root] + 1, -1 do
+                    for i = #map, (indexMap[root] or 0) + 1, -1 do
                         map[i]      = nil
                     end
 
@@ -401,7 +406,7 @@ do
     function RegisterAutoItemGen(self)
         -- For now only allow one button for the same class and subclass
         local itemClass, itemSubClass = self.AutoGenRule.class, self.AutoGenRule.subclass
-        if not itemClass then self.AutoGenRule = nil return  end
+        if not itemClass then self.AutoGenRule = nil return end
 
         for root in pairs(AUTOGEN_ITEM_ROOT) do
             if root ~= self and root.AutoGenRule and root.AutoGenRule.type == AutoGenRuleType.Item then
@@ -413,6 +418,7 @@ do
                 AUTOGEN_ITEM_ROOT[root] = nil
             end
         end
+        AUTOGEN_MAP[self] = nil
         AUTOGEN_ITEM_ROOT[self] = true
 
         FireSystemEvent("SHADOWDANCER_AUTO_GEN_ITEM")
