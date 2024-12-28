@@ -90,11 +90,6 @@ do
         AutoFadeMap             = newtable()
         State                   = newtable()
 
-        -- Allow button For retail
-        AllowButtons            = newtable()
-        AllowButtons.down       = true
-        AllowButtons.up         = true
-
         CALC_EFFECT_BAR         = [=[
             local bar           = FLYOUT_MAP[self]
             if not bar or EFFECT_BAR[bar] then return end
@@ -159,12 +154,6 @@ do
         ]=]
     ]==]
 
-    -- Add check for the ActionButtonUseKeyDown setting
-    if Scorpio.IsRetail then
-        _ManagerFrame:Execute[==[
-            AllowButtons.down   = false
-        ]==]
-    end
 
     function RECYCLE_BUTTONS:OnPop(button)
         button:Show()
@@ -1036,10 +1025,7 @@ class "DancerButton" (function(_ENV)
 
         _ManagerFrame:WrapScript(self, "OnClick", [=[
                 -- Check repeat
-                local btn = down and "down" or "up"
-                if not AllowButtons[btn] then
-                    return self:GetAttribute("actiontype") ~= "flyout" and button or nil
-                end
+                if (self:GetAttribute("registeredclicks") or ""):match("down") and not down then return false end
 
                 -- Check swap mode
                 local swapBar = FLYOUT_MAP[self]
