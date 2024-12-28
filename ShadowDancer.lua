@@ -385,21 +385,26 @@ function BindAutoGen()
     local mask              = RECYCLE_MASKS()
     mask.InAutoGenBindMode  = true
 
+    Alert(_Locale["Finish the operation"], function() mask.InAutoGenBindMode = nil end)
+
     while not InCombatLockdown() and mask.InAutoGenBindMode do
-        local button        = GetMouseFocus()
+        if not BindingGuide:IsShown() then
+            local button    = GetMouseFocus()
 
-        if button then
-            button          = GetProxyUI(button)
+            if button then
+                button      = GetProxyUI(button)
 
-            if Class.IsObjectType(button, DancerButton) then
-                mask:SetParent(button)
-                mask:Show()
-
-                while button:IsMouseOver() and mask.InAutoGenBindMode do
+                if Class.IsObjectType(button, DancerButton) then
+                    mask:SetParent(button)
+                    mask:Show()
                     Next()
-                end
 
-                mask:Hide()
+                    while button:IsMouseOver() and mask:IsShown() do
+                        Next()
+                    end
+
+                    mask:Hide()
+                end
             end
         end
 
@@ -407,9 +412,9 @@ function BindAutoGen()
     end
 
     if mask.InAutoGenBindMode then
-        mask.InAutoGenBindMode = nil
-        RECYCLE_MASKS(mask)
+        CloseCurrentDialog()
     end
+    RECYCLE_MASKS(mask)
 end
 
 __SlashCmd__ ("/shd",          "custom", _Locale["Start binding custom name and texture"])
@@ -423,21 +428,26 @@ function BindCustomAction()
     local mask              = RECYCLE_MASKS()
     mask.InCustomBindMode   = true
 
+    Alert(_Locale["Finish the operation"], function() mask.InCustomBindMode = nil end)
+
     while not InCombatLockdown() and mask.InCustomBindMode do
-        local button        = GetMouseFocus()
+        if not CustomBindGuide:IsShown() then
+            local button    = GetMouseFocus()
 
-        if button then
-            button          = GetProxyUI(button)
+            if button then
+                button      = GetProxyUI(button)
 
-            if Class.IsObjectType(button, DancerButton) and button.IsCustomable then
-                mask:SetParent(button)
-                mask:Show()
-
-                while button:IsMouseOver() and mask.InCustomBindMode do
+                if Class.IsObjectType(button, DancerButton) and button.IsCustomable then
+                    mask:SetParent(button)
+                    mask:Show()
                     Next()
-                end
 
-                mask:Hide()
+                    while button:IsMouseOver() and mask:IsShown() do
+                        Next()
+                    end
+
+                    mask:Hide()
+                end
             end
         end
 
@@ -445,9 +455,9 @@ function BindCustomAction()
     end
 
     if mask.InCustomBindMode then
-        mask.InCustomBindMode = nil
-        RECYCLE_MASKS(mask)
+        CloseCurrentDialog()
     end
+    RECYCLE_MASKS(mask)
 end
 
 __SlashCmd__ ("/shd",          "swap", _Locale["Change the swap mode of the flyout bar"])
@@ -461,6 +471,8 @@ function SwapBarMode()
     local mask              = RECYCLE_MASKS()
     mask.InSwapBarMode      = true
 
+    Alert(_Locale["Finish the operation"], function() mask.InSwapBarMode = nil end)
+
     while not InCombatLockdown() and mask.InSwapBarMode do
         local button        = GetMouseFocus()
 
@@ -470,8 +482,9 @@ function SwapBarMode()
             if Class.IsObjectType(button, DancerButton) and button.IsSwappable then
                 mask:SetParent(button)
                 mask:Show()
+                Next()
 
-                while button:IsMouseOver() and mask.InSwapBarMode do
+                while button:IsMouseOver() and mask:IsShown() do
                     Next()
                 end
 
@@ -483,9 +496,9 @@ function SwapBarMode()
     end
 
     if mask.InSwapBarMode then
-        mask.InSwapBarMode = nil
-        RECYCLE_MASKS(mask)
+        CloseCurrentDialog()
     end
+    RECYCLE_MASKS(mask)
 end
 
 -----------------------------------------------------------
@@ -510,27 +523,22 @@ end
 
 function OpenMaskMenu(self, button)
     if self.InAutoGenBindMode then
-        self.InAutoGenBindMode  = nil
-
         if button == "LeftButton" then
             ShowAutoGenBind(self:GetParent())
         end
 
-        return RECYCLE_MASKS(self)
+        return self:Hide()
     elseif self.InCustomBindMode then
-        self.InCustomBindMode   = nil
-
         if button == "LeftButton" then
             ShowCustomBind(self:GetParent())
         end
 
-        return RECYCLE_MASKS(self)
+        return self:Hide()
     elseif self.InSwapBarMode then
-        self.InSwapBarMode      = nil
-
         local bar               = self:GetParent().FlyoutBar
         if not bar then return end
 
+        self:Hide()
         return ShowDropDownMenu {
             check               = {
                 get             = function() return bar.SwapMode end,

@@ -38,6 +38,7 @@ L["Lock the action bars"]       = "锁定动作条"
 L["Start binding key"]          = "开始绑定按键"
 L["Start binding auto gen rule"]= "开始自动生成规则绑定"
 L["Start binding custom name and texture"] = "开始设置自定义按钮名字和材质"
+L["Finish the operation"] 		= "结束当前处理"
 
 L["Custom Action"]              = "自定义动作"
 L["Button Operation"]           = "按钮特殊绑定"
