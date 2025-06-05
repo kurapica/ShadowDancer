@@ -16,6 +16,7 @@
 localization\enUS.lua
 localization\zhCN.lua
 localization\zhTW.lua
+localization\ruRU.lua
 
 # Core
 Template.lua
