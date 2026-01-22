@@ -259,7 +259,11 @@ end
 
 __Config__(_CharConfig, false) __NoCombat__()
 function HideMainMenuBar(hide)
-    MainMenuBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+    if MainMenuBar then
+        MainMenuBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+    elseif MainActionBar then
+        MainActionBar:SetParent(hide and HIDDEN_FRAME or UIParent)
+    end
 end
 
 if Scorpio.IsRetail then
