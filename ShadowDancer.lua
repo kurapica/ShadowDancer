@@ -295,8 +295,8 @@ end
 
 __Config__(_CharConfig, false) __NoCombat__()
 function HidePlayerCastingBarFrame(hide)
-    PlayerCastingBarFrame:SetUnit(not hide and "player" or nil)
-    OverlayPlayerCastingBarFrame:SetUnit(not hide and "player" or nil)
+    PlayerCastingBarFrame:SetParent(hide and HIDDEN_FRAME or UIParent)
+    OverlayPlayerCastingBarFrame:SetParent(hide and HIDDEN_FRAME or UIParent)
 end
 
 end
